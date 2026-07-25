@@ -1,0 +1,207 @@
+<mxfile host="app.diagrams.net" modified="2026-07-25T20:14:00.000Z" agent="Grok" version="24.7.0" type="device">
+  <diagram id="keycloak-entra-broker" name="Keycloak as Entra ID Broker on EKS">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Keycloak as OIDC Broker to Microsoft Entra ID (EKS)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="320" y="20" width="900" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ========== LEFT: Clients / Users ========== -->
+        <mxCell id="clients-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;dashPattern=8 8;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="280" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="clients-label" value="Clients / Users" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="95" width="280" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Browser -->
+        <mxCell id="browser" value="Browser&#xa;(Web IDE)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="150" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- OrderSubscriber -->
+        <mxCell id="subscriber" value="OrderSubscriber&#xa;(Barrage client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="250" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- OrderSimulator -->
+        <mxCell id="simulator" value="OrderSimulator&#xa;(service account)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="350" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ========== CENTER: EKS ========== -->
+        <mxCell id="eks-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=0;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="90" width="520" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="eks-label" value="AWS EKS Cluster  ·  namespace: deephaven" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="380" y="95" width="520" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ALB / Ingress -->
+        <mxCell id="alb" value="Application Load Balancer (ALB)&#xa;+ Ingress&#xa;TLS termination (ACM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="140" width="360" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Keycloak box -->
+        <mxCell id="keycloak-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="430" y="240" width="420" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="keycloak-label" value="Keycloak (OIDC Broker)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="430" y="245" width="420" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="keycloak-pod" value="Keycloak Pods&#xa;(replicas: 2–3)&#xa;jdbc-ping + shared RDS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="460" y="280" width="160" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="keycloak-realm" value="Realm: deephaven_core&#xa;• Clients (deephaven, order-simulator)&#xa;• Roles (trader-us, trader-emea…)&#xa;• Identity Provider: Entra ID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="280" width="190" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="keycloak-note" value="Issues its own tokens&#xa;after successful Entra federation" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="460" y="370" width="160" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Deephaven box -->
+        <mxCell id="dh-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="430" y="470" width="420" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="dh-label" value="Deephaven Community Core" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="430" y="475" width="420" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dh-pods" value="Deephaven Pods&#xa;(replicas: 1–3)&#xa;OIDC handler validates&#xa;Keycloak tokens only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="460" y="515" width="170" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dh-config" value="Config:&#xa;authentication.oidc.keycloak.url&#xa;= https://auth…&#xa;&#xa;AuthHandlers =&#xa;OidcAuthenticationHandler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="650" y="515" width="180" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ========== RIGHT: Entra ID ========== -->
+        <mxCell id="entra-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;dashPattern=8 8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="960" y="90" width="280" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="entra-label" value="Microsoft Entra ID" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="960" y="95" width="280" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="entra-tenant" value="Entra Tenant&#xa;(Azure AD)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="150" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="entra-app" value="App Registration&#xa;(OIDC / OAuth2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="240" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="entra-users" value="Users / Groups /&#xa;App Roles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="320" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ========== Arrows ========== -->
+
+        <!-- Browser to ALB -->
+        <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="browser" target="alb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a1l" value="1. Open IDE" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="a1">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ALB to Keycloak (login redirect) -->
+        <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="alb" target="keycloak-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Keycloak to Entra -->
+        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="keycloak-pod" target="entra-tenant">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="315" />
+              <mxPoint x="920" y="180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a3l" value="2. Federate /&#xa;redirect to Entra" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#b85450;" vertex="1" connectable="0" parent="a3">
+          <mxGeometry x="-0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Entra back to Keycloak -->
+        <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="entra-tenant" target="keycloak-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="940" y="180" />
+              <mxPoint x="940" y="340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a4l" value="3. Auth success&#xa;+ claims" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#b85450;" vertex="1" connectable="0" parent="a4">
+          <mxGeometry x="0.1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Keycloak issues token to client (via ALB) -->
+        <mxCell id="a5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="keycloak-pod" target="browser">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="315" />
+              <mxPoint x="360" y="180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a5l" value="4. Keycloak&#xa;access token" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#9673a6;" vertex="1" connectable="0" parent="a5">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Client presents token to Deephaven -->
+        <mxCell id="a6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="browser" target="dh-pods">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="340" y="180" />
+              <mxPoint x="340" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a6l" value="5. Present token&#xa;to Deephaven" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#6c8ebf;" vertex="1" connectable="0" parent="a6">
+          <mxGeometry x="0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Headless clients also go through Keycloak -->
+        <mxCell id="a7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="simulator" target="keycloak-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="380" />
+              <mxPoint x="60" y="430" />
+              <mxPoint x="400" y="430" />
+              <mxPoint x="400" y="315" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a7l" value="client-credentials&#xa;/ password grant" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#82b366;" vertex="1" connectable="0" parent="a7">
+          <mxGeometry x="-0.3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ========== Legend / Notes ========== -->
+        <mxCell id="notes" value="<b>Flow summary</b><br>1. User opens Deephaven IDE<br>2. Keycloak redirects to Entra ID (OIDC federation)<br>3. User authenticates at Entra; claims returned to Keycloak<br>4. Keycloak issues its own access token (with mapped realm roles)<br>5. Client presents Keycloak token to Deephaven<br>6. Deephaven validates token against Keycloak only (issuer + JWKS)<br><br><b>Key point:</b> Deephaven never talks to Entra ID directly. Keycloak is the single IdP it trusts." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;spacingLeft=12;spacingTop=8;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="960" y="440" width="280" height="270" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
