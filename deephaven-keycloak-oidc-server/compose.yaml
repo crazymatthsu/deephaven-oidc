@@ -1,0 +1,50 @@
+# Local dev stack: Keycloak (OIDC identity provider) + Deephaven with OIDC auth.
+#
+# One-time host setup (macOS/Linux): add this line to /etc/hosts:
+#   127.0.0.1 keycloak.local
+# Every party (browser, Deephaven server, Java clients) must reach Keycloak at the SAME
+# URL, http://keycloak.local:6060, so that OIDC issuer/JWKS URLs agree. Inside the
+# Deephaven container, keycloak.local resolves to the podman host gateway (extra_hosts
+# below); on the host it resolves to 127.0.0.1 via /etc/hosts.
+#
+# Run with:  podman compose -f deephaven-keycloak-oidc-server/compose.yaml up --build
+name: deephaven-oidc
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      # Pin the issuer/endpoint URLs to the shared hostname regardless of how a request arrives.
+      KC_HOSTNAME: http://keycloak.local:6060
+    ports:
+      - "6060:8080"
+    volumes:
+      - ./docker/keycloak/deephaven_realm.json:/opt/keycloak/data/import/deephaven_realm.json
+
+  deephaven:
+    build:
+      context: ./docker/deephaven
+    ports:
+      - "10000:10000"
+    environment:
+      # Loads the OIDC authentication provider fat jar baked into the image.
+      EXTRA_CLASSPATH: "/apps/libs/*"
+      START_OPTS: >-
+        -Xmx2g
+        -DAuthHandlers=io.deephaven.authentication.oidc.OidcAuthenticationHandler
+        -Dauthentication.oidc.keycloak.url=http://keycloak.local:6060
+        -Dauthentication.oidc.keycloak.realm=deephaven_core
+        -Dauthentication.oidc.keycloak.clientId=deephaven
+        -Dauthentication.client.configuration.list=AuthHandlers,authentication.oidc.keycloak.url,authentication.oidc.keycloak.realm,authentication.oidc.keycloak.clientId
+        -Ddeephaven.application.dir=/app.d
+    extra_hosts:
+      - "keycloak.local:host-gateway"
+    depends_on:
+      - keycloak
+    # The OIDC handler fetches Keycloak's discovery document at startup; restart until
+    # Keycloak has finished importing the realm.
+    restart: on-failure

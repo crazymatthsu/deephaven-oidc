@@ -1,0 +1,70 @@
+# Deephaven server with OIDC authentication.
+#
+# Build and push the image from this repo first:
+#   podman build -t <acct>.dkr.ecr.<region>.amazonaws.com/deephaven-oidc:0.39.4 \
+#       deephaven-keycloak-oidc-server/docker/deephaven
+#   podman push <acct>.dkr.ecr.<region>.amazonaws.com/deephaven-oidc:0.39.4
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deephaven
+  namespace: deephaven
+  labels:
+    app: deephaven
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # single stateful engine; no rolling overlap
+  selector:
+    matchLabels:
+      app: deephaven
+  template:
+    metadata:
+      labels:
+        app: deephaven
+    spec:
+      containers:
+        - name: deephaven
+          image: REPLACE-with-ecr-repo/deephaven-oidc:0.39.4
+          env:
+            - name: EXTRA_CLASSPATH
+              value: "/apps/libs/*"
+            # Note deephaven.console.disable=true: in the hardened deployment nobody gets a code console,
+            # so the unfiltered `orders` table cannot be reached by running server-side code. Operators use
+            # `kubectl port-forward` with a console-enabled sidecar deployment if they need one, or redeploy
+            # with the flag off in a maintenance window.
+            - name: START_OPTS
+              value: >-
+                -Xmx4g
+                -DAuthHandlers=io.deephaven.authentication.oidc.OidcAuthenticationHandler
+                -Dauthentication.oidc.keycloak.url=https://auth.deephaven.example.com
+                -Dauthentication.oidc.keycloak.realm=deephaven_core
+                -Dauthentication.oidc.keycloak.clientId=deephaven
+                -Dauthentication.client.configuration.list=AuthHandlers,authentication.oidc.keycloak.url,authentication.oidc.keycloak.realm,authentication.oidc.keycloak.clientId
+                -Ddeephaven.application.dir=/app.d
+                -Ddeephaven.console.disable=true
+          ports:
+            - name: grpc-http
+              containerPort: 10000
+          readinessProbe:
+            httpGet: { path: /ide/, port: 10000 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "2", memory: 5Gi }
+            limits: { memory: 6Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deephaven
+  namespace: deephaven
+  labels:
+    app: deephaven
+spec:
+  selector:
+    app: deephaven
+  ports:
+    - name: grpc-http
+      port: 10000
+      targetPort: grpc-http

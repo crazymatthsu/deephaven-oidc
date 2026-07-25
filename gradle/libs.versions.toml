@@ -1,0 +1,11 @@
+[versions]
+deephaven = "0.39.4"
+jackson = "2.18.2"
+slf4j = "2.0.16"
+
+[libraries]
+deephaven-client-barrage = { module = "io.deephaven:deephaven-java-client-barrage", version.ref = "deephaven" }
+deephaven-oidc-provider = { module = "io.deephaven:deephaven-oidc-authentication-provider", version.ref = "deephaven" }
+deephaven-log-to-slf4j = { module = "io.deephaven:deephaven-log-to-slf4j", version.ref = "deephaven" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }

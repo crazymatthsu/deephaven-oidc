@@ -1,0 +1,65 @@
+# Public entry points, both terminating TLS at an internet-facing AWS ALB
+# (requires the AWS Load Balancer Controller add-on).
+#
+# Deephaven speaks gRPC (HTTP/2) on the same port as the web UI, so the Deephaven target
+# group MUST use backend-protocol-version GRPC... except that the web IDE itself is plain
+# HTTP/1.1. ALB handles this because gRPC target groups still pass HTTP/1.1 traffic through;
+# see DESIGN.md#load-balancer if your controller version behaves differently (fallback: NLB
+# + TLS passthrough with cert-manager in-pod).
+#
+# Replace certificate-arn and the hostnames with your ACM cert and Route53 records.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deephaven
+  namespace: deephaven
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REPLACE-region:REPLACE-acct:certificate/REPLACE-id
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Barrage subscriptions are long-lived server-streaming RPCs; keep idle timeout generous.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+    # Optional hardening: restrict to the on-prem egress CIDR (see DESIGN.md).
+    # alb.ingress.kubernetes.io/inbound-cidrs: 203.0.113.0/24
+spec:
+  ingressClassName: alb
+  rules:
+    - host: deephaven.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: deephaven
+                port:
+                  name: grpc-http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  namespace: deephaven
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REPLACE-region:REPLACE-acct:certificate/REPLACE-id
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+spec:
+  ingressClassName: alb
+  rules:
+    - host: auth.deephaven.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http

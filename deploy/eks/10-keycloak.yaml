@@ -1,0 +1,91 @@
+# Keycloak for the EKS environment.
+#
+# PRODUCTION NOTES:
+# - If your company already runs an IdP (corporate Keycloak, Entra ID federation, Okta with an OIDC bridge),
+#   point Deephaven at it instead of deploying this and delete this file.
+# - This runs `start` (production mode) behind the ALB, which terminates TLS. Back it with an RDS PostgreSQL
+#   instance (KC_DB_URL below) — do NOT run the dev-file database in EKS.
+# - The realm import here reuses the same deephaven_realm.json as local dev, mounted from a ConfigMap created by:
+#     kubectl -n deephaven create configmap keycloak-realm \
+#       --from-file=deephaven_realm.json=deephaven-keycloak-oidc-server/docker/keycloak/deephaven_realm.json
+#   For production, manage the realm in Keycloak itself (or IaC) and remove --import-realm; also change every
+#   demo credential (users, order-simulator secret, bootstrap admin).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: deephaven
+  labels:
+    app: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.2
+          args: ["start", "--import-realm"]
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef: { name: keycloak-admin, key: username }
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: keycloak-admin, key: password }
+            # Public URL of Keycloak as seen by browsers, on-prem clients, AND the Deephaven pod.
+            - name: KC_HOSTNAME
+              value: "https://auth.deephaven.example.com"
+            # TLS terminates at the ALB; Keycloak serves HTTP inside the pod network.
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: "xforwarded"
+            - name: KC_DB
+              value: "postgres"
+            - name: KC_DB_URL
+              value: "jdbc:postgresql://REPLACE-with-rds-endpoint:5432/keycloak"
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef: { name: keycloak-db, key: username }
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: keycloak-db, key: password }
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /realms/master, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { memory: 2Gi }
+          volumeMounts:
+            - name: realm-import
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+      volumes:
+        - name: realm-import
+          configMap:
+            name: keycloak-realm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: deephaven
+  labels:
+    app: keycloak
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
