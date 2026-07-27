@@ -1,11 +1,11 @@
-# Custom Entra ID OIDC Handler for Deephaven using MSAL Java
+# Custom Entra ID OIDC Handler for Deephaven
 
-**Date:** 2026-07-27  
-**Status:** Research / feasibility notes
+**Date:** 2026-07-27 (updated)  
+**Status:** Research / feasibility notes + minimal implementation sketch
 
 ## Question
 
-Is it possible to create a custom OIDC authentication handler for Deephaven Community Core that works for both the **Web UI** and **gRPC / Barrage API clients**, using the Microsoft MSAL Java library and talking directly to Microsoft Entra ID?
+Is it possible to create a custom OIDC authentication handler for Deephaven Community Core that works for both the **Web UI** and **gRPC / Barrage API clients**, talking directly to Microsoft Entra ID?
 
 ## Short Answer
 
@@ -14,9 +14,11 @@ Is it possible to create a custom OIDC authentication handler for Deephaven Comm
 | Surface | Feasible? | Notes |
 |---------|-----------|-------|
 | gRPC / Barrage / Flight (server) | **Yes** | Implement `AuthenticationRequestHandler`; validate JWT against Entra JWKS |
-| Java API clients | **Yes** | Use MSAL Java (msal4j) to acquire tokens |
+| Java API clients | **Yes** | Use MSAL Java (msal4j) or Spring OAuth2 Client to acquire tokens |
 | Web UI | **Yes, but extra work** | Requires a custom JS login plugin (MSAL.js) or alternative login path |
 | Full replacement of Keycloak | **Yes** | Achievable once both server handler and browser login exist |
+
+---
 
 ## 1. Server-side handler (gRPC / Barrage / Flight)
 
@@ -35,75 +37,235 @@ public class EntraOidcAuthenticationHandler implements AuthenticationRequestHand
 2. Your `login(...)` method receives the token string.
 3. You validate it and return an `AuthContext` (or empty → reject).
 
-### MSAL Java vs token validation
+### Token acquisition vs token validation
 
-| Concern | Library |
-|---------|---------|
-| **Acquiring** tokens (clients) | **MSAL Java (msal4j)** — recommended |
-| **Validating** tokens (server / resource server) | **Not MSAL**. Use Nimbus JOSE + JWT (or equivalent) against Entra’s JWKS endpoint |
+| Concern | Recommended library |
+|---------|---------------------|
+| **Acquiring** tokens (clients) | **MSAL Java (msal4j)** (preferred for Entra) or Spring Security OAuth2 Client |
+| **Validating** tokens (server) | **Spring Security OAuth2 Resource Server** (`JwtDecoder`) **or** plain Nimbus JOSE + JWT |
 
-MSAL is a client library for obtaining tokens. For resource-server validation you typically:
+MSAL is a *client* library for obtaining tokens. It is **not** a resource-server validator.
 
-- Fetch / cache JWKS from  
-  `https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys`
-- Verify signature, `iss`, `aud` (or `azp`), `exp`, `nbf`
-- Extract roles / groups / app roles from claims
-- Map them into your `AuthContext` (and later into entitlements)
+---
 
-This is the same pattern the official Keycloak handler uses, just with a different issuer and claim layout.
+## 2. Using Spring Security for token validation
 
-## 2. Java clients (OrderSimulator, OrderSubscriber, etc.)
+Spring Security provides production-ready OIDC/JWT support that can be used **inside** a Deephaven handler without turning Deephaven into a Spring Boot web application.
 
-Replace the existing `KeycloakTokenClient` with an MSAL-based client:
+| Artifact | Purpose |
+|----------|---------|
+| `spring-security-oauth2-resource-server` | `JwtDecoder`, validators, claim extraction |
+| `spring-security-oauth2-jose` | Nimbus-based JWT support (pulled in transitively) |
 
-- **Interactive / user flows** → Public client + Authorization Code + PKCE (or device code flow)
+You only need the JWT decoding/validation pieces — not the full Spring Security filter chain or `spring-boot-starter-security`.
+
+### Typical setup
+
+```java
+JwtDecoder decoder = NimbusJwtDecoder
+    .withIssuerLocation("https://login.microsoftonline.com/{tenant}/v2.0")
+    .build();
+
+// Optional: enforce audience
+OAuth2TokenValidator<Jwt> withAudience =
+    new DelegatingOAuth2TokenValidator<>(
+        JwtValidators.createDefaultWithIssuer(issuer),
+        new JwtClaimValidator<List<String>>("aud",
+            aud -> aud != null && aud.contains("api://your-app-id")));
+((NimbusJwtDecoder) decoder).setJwtValidator(withAudience);
+```
+
+This gives you signature verification, issuer check, expiry, and optional audience/roles validation with very little code.
+
+### Spring vs MSAL vs plain Nimbus
+
+| Concern | Best fit |
+|---------|----------|
+| Server token validation | **Spring Security Resource Server** or plain Nimbus |
+| Java client token acquisition (Entra-specific) | **MSAL Java** (preferred) |
+| Java client token acquisition (generic OIDC) | Spring Security OAuth2 Client also excellent |
+| Web UI | Still needs JS (MSAL.js / custom plugin) — Spring does not help here |
+
+---
+
+## 3. Minimal `EntraOidcAuthenticationHandler` (Spring `JwtDecoder`)
+
+```java
+package io.deephaven.oidc.entra;
+
+import io.deephaven.auth.AuthContext;
+import io.deephaven.auth.AuthenticationException;
+import io.deephaven.auth.AuthenticationRequestHandler;
+import io.deephaven.configuration.Configuration;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Minimal Deephaven AuthenticationRequestHandler that validates
+ * Microsoft Entra ID (Azure AD) access tokens using Spring Security's JwtDecoder.
+ *
+ * Configuration properties (examples):
+ *   authentication.oidc.entra.issuer-uri = https://login.microsoftonline.com/{tenant}/v2.0
+ *   authentication.oidc.entra.audience   = api://your-app-client-id   (optional)
+ */
+public class EntraOidcAuthenticationHandler implements AuthenticationRequestHandler {
+
+    private static final String ISSUER_URI =
+            Configuration.getInstance().getProperty("authentication.oidc.entra.issuer-uri");
+
+    // Optional – set if you want to enforce a specific audience / app ID URI
+    private static final String AUDIENCE =
+            Configuration.getInstance().getProperty("authentication.oidc.entra.audience", "");
+
+    private JwtDecoder jwtDecoder;
+
+    @Override
+    public void initialize(String targetUrl) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(ISSUER_URI).build();
+
+        // Uncomment / extend to enforce audience if required:
+        // OAuth2TokenValidator<Jwt> audienceValidator =
+        //     new JwtClaimValidator<>("aud", aud -> aud != null && aud.contains(AUDIENCE));
+        // decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+        //     JwtValidators.createDefaultWithIssuer(ISSUER_URI), audienceValidator));
+
+        this.jwtDecoder = decoder;
+    }
+
+    @Override
+    public String getAuthType() {
+        return getClass().getName();   // clients must use this exact string
+    }
+
+    @Override
+    public Optional<AuthContext> login(long protocolVersion, ByteBuffer payload,
+                                       HandshakeResponseListener listener)
+            throws AuthenticationException {
+        return validate(StandardCharsets.US_ASCII.decode(payload).toString());
+    }
+
+    @Override
+    public Optional<AuthContext> login(String payload, MetadataResponseListener listener)
+            throws AuthenticationException {
+        return validate(payload);
+    }
+
+    private Optional<AuthContext> validate(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        // Clients may send "Bearer <token>" or just the raw JWT
+        String raw = token.startsWith("Bearer ") ? token.substring(7).trim() : token.trim();
+
+        try {
+            Jwt jwt = jwtDecoder.decode(raw);
+
+            // Example: extract roles / groups / app roles for later entitlement mapping
+            List<String> roles = jwt.getClaimAsStringList("roles");          // app roles
+            // List<String> groups = jwt.getClaimAsStringList("groups");     // if configured
+            // String oid = jwt.getClaimAsString("oid");                    // object id
+
+            // For a first version we admit any valid Entra token as SuperUser.
+            // Replace with a proper AuthContext that carries roles if you need
+            // row-level / object-level authorization later.
+            return Optional.of(new AuthContext.SuperUser());
+
+        } catch (JwtException e) {
+            // Invalid signature, expired, wrong issuer, etc.
+            return Optional.empty();
+        }
+    }
+}
+```
+
+### Wiring it into Deephaven
+
+```text
+-DAuthHandlers=io.deephaven.oidc.entra.EntraOidcAuthenticationHandler
+-Dauthentication.oidc.entra.issuer-uri=https://login.microsoftonline.com/{tenant-id}/v2.0
+-Dauthentication.oidc.entra.audience=api://your-app-id-uri          # optional
+-Dauthentication.client.configuration.list=AuthHandlers,authentication.oidc.entra.issuer-uri
+```
+
+Add the Spring jars to the server classpath (e.g. via `EXTRA_CLASSPATH` or the Docker image):
+
+```text
+org.springframework.security:spring-security-oauth2-resource-server
+org.springframework.security:spring-security-oauth2-jose
+```
+
+(Plus their transitive dependencies — Nimbus, etc.)
+
+---
+
+## 4. Java clients (OrderSimulator, OrderSubscriber, …)
+
+Replace the existing `KeycloakTokenClient` with an MSAL-based (or Spring OAuth2 Client) implementation:
+
+- **Interactive / user flows** → Public client + Authorization Code + PKCE (or device code)
 - **Service accounts** → Confidential client + Client Credentials grant
 
-MSAL Java handles token caching, refresh, and Entra-specific behaviour cleanly. The acquired access token is then passed into the Deephaven session exactly as today:
+Then pass the access token into the Deephaven session:
 
 ```java
 SessionConfig.builder()
-    .authenticationTypeAndValue(HANDLER_NAME + " " + accessToken)
+    .authenticationTypeAndValue(
+        EntraOidcAuthenticationHandler.class.getName() + " " + accessToken)
     .build();
 ```
 
-## 3. Web UI
+MSAL Java remains the preferred choice for Entra-specific client scenarios.
 
-This is the harder surface.
+---
 
-- The published `@deephaven/js-plugin-auth-keycloak` is Keycloak-specific.
-- There is no official generic OIDC / Entra plugin for the Community Web UI.
+## 5. Web UI
 
-Two realistic options:
+Still the harder surface.
+
+- `@deephaven/js-plugin-auth-keycloak` is Keycloak-specific.
+- No official generic OIDC / Entra plugin exists for Community Web UI.
+
+Options:
 
 | Option | Effort | Description |
 |--------|--------|-------------|
-| **A. Custom JS login plugin** | Medium–High | Write a plugin that uses **MSAL.js** (or plain OIDC + PKCE) against Entra, then hands the access token to Deephaven the same way the Keycloak plugin does. |
-| **B. External login page + token hand-off** | Medium | Host a small login page that performs the Entra flow and redirects back with the token; the IDE consumes it. |
+| Custom JS login plugin | Medium–High | Use MSAL.js (or plain OIDC + PKCE) and hand the access token to Deephaven |
+| External login page + token hand-off | Medium | Small page performs Entra login and redirects back with the token |
 
-Until a working browser login path exists, the Web IDE cannot authenticate against a pure Entra handler.
+Until a browser login path exists, the Web IDE cannot authenticate against a pure Entra handler.
+
+---
 
 ## Recommended Implementation Order
 
 1. **Server handler + Java clients**  
-   Implement `EntraOidcAuthenticationHandler` (Nimbus/JWKS validation) and an MSAL-based token client. This unblocks all headless and programmatic use.
+   Ship `EntraOidcAuthenticationHandler` (Spring `JwtDecoder`) and an MSAL-based token client. Unblocks all headless / programmatic use.
 
 2. **Web UI**  
-   Either keep Keycloak temporarily as a broker for the browser, or invest in a custom MSAL.js login plugin.
+   Keep Keycloak temporarily as a broker for the browser, *or* build a custom MSAL.js login plugin.
 
 3. **Remove Keycloak**  
-   Once both the server handler and the browser login path work against Entra directly, Keycloak can be retired.
+   Once both the server handler and the browser login path work against Entra directly.
+
+---
 
 ## Key Technical References
 
-- Deephaven `AuthenticationRequestHandler` interface (see `OidcAuthenticationHandler` in deephaven-core as the existing Keycloak example).
-- MSAL Java (msal4j) for token acquisition.
-- Nimbus JOSE + JWT (or equivalent) for resource-server JWT validation against Entra JWKS.
-- Entra ID OIDC discovery document:  
+- Deephaven `AuthenticationRequestHandler` (see official `OidcAuthenticationHandler` for the Keycloak example)
+- Spring Security OAuth2 Resource Server – `NimbusJwtDecoder`, `JwtValidators`
+- MSAL Java (msal4j) – token acquisition for clients
+- Entra ID OIDC discovery:  
   `https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration`
 
 ## Related Documents in This Repository
 
-- [`docs/entra-id-vs-keycloak.md`](../entra-id-vs-keycloak.md) — high-level comparison and broker vs full-replacement options
+- [`docs/entra-id-vs-keycloak.md`](../entra-id-vs-keycloak.md) — broker vs full-replacement options
 - [`docs/keycloak-ha-and-operator.md`](../keycloak-ha-and-operator.md) — Keycloak HA notes
 - [`docs/oidc/keycloak-entra-broker-architecture.drawio`](keycloak-entra-broker-architecture.drawio) — architecture diagram for the broker approach
