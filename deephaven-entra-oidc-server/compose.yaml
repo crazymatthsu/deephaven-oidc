@@ -1,0 +1,38 @@
+# Deephaven with DIRECT Microsoft Entra ID authentication — no Keycloak container.
+# Entra ID (login.microsoftonline.com) is the identity provider; the server validates presented
+# access tokens against the tenant's JWKS at startup/login time, so it needs outbound HTTPS.
+#
+# Required environment (see .env.example; compose fails fast if missing):
+#   ENTRA_TENANT_ID   directory (tenant) ID
+#   ENTRA_AUDIENCE    expected aud, e.g. api://<app-id-uri> or the API app's client ID
+#
+# Run with:
+#   scripts/start.sh entra
+# or manually:
+#   ./gradlew :deephaven-entra-oidc-server:fatJar
+#   podman compose -f deephaven-entra-oidc-server/compose.yaml up --build
+#
+# NOTE: browser IDE login is not available in this stack yet (no Entra JS login plugin);
+# use the Java clients with AUTH_PROVIDER=entra. See docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md.
+name: deephaven-entra-oidc
+
+services:
+  deephaven:
+    build:
+      context: ..
+      dockerfile: deephaven-entra-oidc-server/docker/deephaven/Dockerfile
+    ports:
+      - "10000:10000"
+    environment:
+      # Loads the Entra OIDC handler fat jar baked into the image.
+      EXTRA_CLASSPATH: "/apps/libs/*"
+      START_OPTS: >-
+        -Xmx2g
+        -DAuthHandlers=io.deephaven.oidc.entra.EntraOidcAuthenticationHandler
+        -Dauthentication.oidc.entra.issuer-uri=https://login.microsoftonline.com/${ENTRA_TENANT_ID:?set ENTRA_TENANT_ID (directory/tenant id)}/v2.0
+        -Dauthentication.oidc.entra.audience=${ENTRA_AUDIENCE:?set ENTRA_AUDIENCE (e.g. api://<app-id-uri>)}
+        -Dauthentication.client.configuration.list=AuthHandlers
+        -Ddeephaven.application.dir=/app.d
+    # The handler fetches Entra's discovery document/JWKS during initialize(); restart covers
+    # transient network failures at boot.
+    restart: on-failure

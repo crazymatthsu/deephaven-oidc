@@ -29,8 +29,14 @@ import java.util.concurrent.CountDownLatch;
  * <p>Authentication:
  * <ul>
  *   <li>{@code AUTH_PROVIDER=keycloak} (default) — Keycloak password grant</li>
- *   <li>{@code AUTH_PROVIDER=entra} — MSAL username/password (ROPC) against Entra ID. The tenant must
- *       allow ROPC for the public app; production should prefer device-code or interactive flows.</li>
+ *   <li>{@code AUTH_PROVIDER=entra} — MSAL against Entra ID; the flow is chosen by
+ *       {@code ENTRA_USER_FLOW}:
+ *       <ul>
+ *         <li>{@code devicecode} (default) — prints a URL + code, sign in from any browser and approve
+ *             with Microsoft Authenticator (MFA). No password is passed to this program.</li>
+ *         <li>{@code interactive} — opens the system browser (auth-code + PKCE); also MFA-capable.</li>
+ *         <li>{@code ropc} — legacy username/password; cannot satisfy MFA, for test tenants only.</li>
+ *       </ul></li>
  * </ul>
  *
  * <p>Run as different users to see row-level security: alice → US, bob → EMEA, carol → all.
@@ -56,10 +62,18 @@ public final class OrderSubscriber {
         List<String> roles;
         if (config.authProvider() == AuthProvider.ENTRA) {
             EntraTokenClient tokens = new EntraTokenClient(config);
-            EntraTokenClient.Token token = tokens.usernamePasswordGrant(user, password);
+            EntraTokenClient.Token token = switch (config.entraUserFlow()) {
+                // MFA-capable flows: identity comes from whoever completes the browser sign-in;
+                // --user/DH_USER and passwords are not used.
+                case DEVICE_CODE -> tokens.deviceCodeGrant();
+                case INTERACTIVE -> tokens.interactiveGrant();
+                // Legacy, MFA-incapable fallback for test tenants.
+                case ROPC -> tokens.usernamePasswordGrant(user, password);
+            };
             accessToken = token.accessToken();
             roles = EntraTokenClient.rolesFromToken(accessToken);
-            System.out.println("Authenticated to Entra ID as '" + user + "' with roles " + roles);
+            String who = token.username().isBlank() ? user : token.username();
+            System.out.println("Authenticated to Entra ID as '" + who + "' with roles " + roles);
         } else {
             KeycloakTokenClient tokens = new KeycloakTokenClient(config);
             KeycloakTokenClient.Token token = tokens.passwordGrant(user, password);

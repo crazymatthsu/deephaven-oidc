@@ -28,6 +28,17 @@ public final class AppConfig {
         ENTRA
     }
 
+    /**
+     * How interactive users obtain Entra tokens ({@code ENTRA_USER_FLOW}). {@link #DEVICE_CODE} (default)
+     * and {@link #INTERACTIVE} complete sign-in in a browser and therefore fully support Microsoft
+     * Authenticator MFA; {@link #ROPC} is a legacy username/password fallback that cannot satisfy MFA.
+     */
+    public enum UserFlow {
+        DEVICE_CODE,
+        INTERACTIVE,
+        ROPC
+    }
+
     private final AuthProvider authProvider;
     private final String deephavenHost;
     private final int deephavenPort;
@@ -39,6 +50,7 @@ public final class AppConfig {
     private final String entraTenantId;
     private final String entraClientId;
     private final String entraScope;
+    private final UserFlow entraUserFlow;
 
     public static AppConfig fromEnv() {
         return new AppConfig(
@@ -52,7 +64,8 @@ public final class AppConfig {
                 get("DH_APP_ID", "orders-app"),
                 get("ENTRA_TENANT_ID", ""),
                 get("ENTRA_CLIENT_ID", ""),
-                get("ENTRA_SCOPE", ""));
+                get("ENTRA_SCOPE", ""),
+                parseUserFlow(get("ENTRA_USER_FLOW", "devicecode")));
     }
 
     private static AuthProvider parseProvider(String raw) {
@@ -60,6 +73,15 @@ public final class AppConfig {
         return switch (v) {
             case "entra", "azure", "azuread", "azure-ad", "msal" -> AuthProvider.ENTRA;
             default -> AuthProvider.KEYCLOAK;
+        };
+    }
+
+    private static UserFlow parseUserFlow(String raw) {
+        String v = raw == null ? "devicecode" : raw.trim().toLowerCase(Locale.ROOT).replace("-", "").replace("_", "");
+        return switch (v) {
+            case "interactive", "browser", "authcode" -> UserFlow.INTERACTIVE;
+            case "ropc", "password", "usernamepassword" -> UserFlow.ROPC;
+            default -> UserFlow.DEVICE_CODE;
         };
     }
 
@@ -74,7 +96,7 @@ public final class AppConfig {
 
     public AppConfig(AuthProvider authProvider, String deephavenHost, int deephavenPort, boolean tls,
             String keycloakUrl, String realm, String clientId, String applicationId, String entraTenantId,
-            String entraClientId, String entraScope) {
+            String entraClientId, String entraScope, UserFlow entraUserFlow) {
         this.authProvider = authProvider;
         this.deephavenHost = deephavenHost;
         this.deephavenPort = deephavenPort;
@@ -86,6 +108,7 @@ public final class AppConfig {
         this.entraTenantId = entraTenantId == null ? "" : entraTenantId.trim();
         this.entraClientId = entraClientId == null ? "" : entraClientId.trim();
         this.entraScope = entraScope == null ? "" : entraScope.trim();
+        this.entraUserFlow = entraUserFlow == null ? UserFlow.DEVICE_CODE : entraUserFlow;
     }
 
     private static String stripTrailingSlash(String url) {
@@ -145,6 +168,11 @@ public final class AppConfig {
         return entraScope;
     }
 
+    /** Token-acquisition flow for interactive Entra users ({@code ENTRA_USER_FLOW}). */
+    public UserFlow entraUserFlow() {
+        return entraUserFlow;
+    }
+
     public String entraAuthority() {
         if (entraTenantId.isBlank()) {
             throw new IllegalStateException(
@@ -174,7 +202,7 @@ public final class AppConfig {
         return "AppConfig{authProvider=" + authProvider + ", deephaven=" + deephavenTargetUri()
                 + (authProvider == AuthProvider.ENTRA
                         ? ", entraTenant=" + entraTenantId + ", entraClientId=" + entraClientId
-                                + ", entraScope=" + entraScope
+                                + ", entraScope=" + entraScope + ", entraUserFlow=" + entraUserFlow
                         : ", keycloak=" + keycloakUrl + ", realm=" + realm + ", clientId=" + clientId)
                 + ", applicationId=" + applicationId + '}';
     }

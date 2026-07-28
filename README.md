@@ -1,20 +1,35 @@
-# Deephaven OIDC with Keycloak
+# Deephaven OIDC — Keycloak or direct Microsoft Entra ID
 
-OIDC single sign-on for open-source [Deephaven Community Core](https://deephaven.io/core/docs/) using
-[Keycloak](https://www.keycloak.org/), with entitlement-based **row-level security** over a live, keyed
-orders table — runnable locally with **podman compose**, deployable to **AWS EKS** (see
-[`deploy/eks/DESIGN.md`](deploy/eks/DESIGN.md)).
+OIDC single sign-on for open-source [Deephaven Community Core](https://deephaven.io/core/docs/) with
+entitlement-based **row-level security** over a live, keyed orders table — runnable locally with
+**podman compose**, deployable to **AWS EKS** (see [`deploy/eks/DESIGN.md`](deploy/eks/DESIGN.md)).
 
-Based on the official guide:
+Two **switchable** identity implementations live side by side:
+
+| | Keycloak stack (default) | Direct Entra ID stack |
+| --- | --- | --- |
+| Server module | [`deephaven-keycloak-oidc-server`](deephaven-keycloak-oidc-server) | [`deephaven-entra-oidc-server`](deephaven-entra-oidc-server) |
+| Identity provider | Local Keycloak container (demo realm) | Your Microsoft Entra tenant (no local IdP) |
+| Auth handler | Published `deephaven-oidc-authentication-provider` (pac4j) | Custom `EntraOidcAuthenticationHandler` fat jar (Spring `JwtDecoder`) |
+| Start | `scripts/start.sh` (or `scripts/start.sh keycloak`) | `scripts/start.sh entra` (needs `ENTRA_TENANT_ID`, `ENTRA_AUDIENCE`) |
+| Java clients | default, or `AUTH_PROVIDER=keycloak` | `AUTH_PROVIDER=entra` (+ `ENTRA_*` vars) |
+| User MFA | Whatever the realm enforces (demo: none) | ✅ Microsoft Authenticator via device-code / interactive MSAL flows |
+| Web IDE login | ✅ works (Keycloak JS plugin) | ❌ not yet — needs an MSAL.js plugin ([roadmap Phase 1](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-1--web-ide-login-via-msaljs)) |
+| Status | Verified end-to-end locally | Build-verified; live test pending an Entra tenant ([setup guide](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide)) |
+
+Remaining Entra work is planned in detail in
+[`docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md`](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md).
+The Keycloak path is based on the official guide:
 [Keycloak / OIDC authentication](https://deephaven.io/core/docs/how-to-guides/authentication/auth-keycloak/).
 
 ## What's in the box
 
 | Module | Contents |
 | --- | --- |
-| `deephaven-keycloak-oidc-server` | The runnable stack: custom Deephaven image (OIDC provider jar + Keycloak web-login plugin + orders app), Keycloak realm import, `compose.yaml` |
-| `deephaven-keycloak-oidc-client` | `OrderSimulator` (publishes mock orders via Flight DoPut into the keyed input table) and `OrderSubscriber` (live Barrage subscription to the caller's entitled view) |
-| `deephaven-keycloak-oidc-common` | Shared config, Keycloak token client (password + client-credentials grants), OIDC-authenticated `BarrageSession` factory |
+| `deephaven-keycloak-oidc-server` | The Keycloak stack: custom Deephaven image (OIDC provider jar + Keycloak web-login plugin + orders app), Keycloak realm import, `compose.yaml` |
+| `deephaven-entra-oidc-server` | The direct Entra stack: `EntraOidcAuthenticationHandler` + fat jar, Deephaven image, `compose.yaml` (no IdP container) |
+| `deephaven-keycloak-oidc-client` | `OrderSimulator` (publishes mock orders via Flight DoPut into the keyed input table) and `OrderSubscriber` (live Barrage subscription to the caller's entitled view) — both work against either stack via `AUTH_PROVIDER` |
+| `deephaven-keycloak-oidc-common` | Shared config, Keycloak token client, **MSAL4J Entra token client** (client-credentials, device-code + Authenticator MFA, interactive, legacy ROPC), OIDC-authenticated `BarrageSession` factory |
 | `deploy/eks` | Kubernetes manifests (ALB/gRPC ingress, TLS) + security design doc for on-prem → EKS access |
 
 ## Demo identities
@@ -47,6 +62,21 @@ access token and subscribe to the matching view.
 > or fetch the `orders` field directly can see all rows. The hardened EKS deployment therefore disables
 > the console (`deephaven.console.disable=true`); real gRPC-layer enforcement options are discussed in
 > [`deploy/eks/DESIGN.md`](deploy/eks/DESIGN.md#authorization--row-level-security).
+
+## Switching between the two stacks
+
+```bash
+scripts/start.sh                # Keycloak stack (default; full quickstart below)
+scripts/start.sh entra          # Direct Entra stack (needs ENTRA_TENANT_ID + ENTRA_AUDIENCE)
+scripts/stop.sh [keycloak|entra]
+scripts/logs.sh [keycloak|entra] [service]
+```
+
+Run one stack at a time (both bind Deephaven to port 10000). Clients pick their token source with
+`AUTH_PROVIDER=keycloak|entra` — see
+[`deephaven-keycloak-oidc-client/README-ENTRA.md`](deephaven-keycloak-oidc-client/README-ENTRA.md)
+for the Entra variants, including the **device-code sign-in with Microsoft Authenticator MFA**
+(`ENTRA_USER_FLOW=devicecode`, the default — no password ever touches the client program).
 
 ## Quickstart (podman)
 
