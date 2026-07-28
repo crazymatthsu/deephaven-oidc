@@ -1,127 +1,129 @@
-<mxfile host="app.diagrams.net" modified="2026-07-28T03:39:00.000Z" agent="Grok" version="24.7.0" type="device">
+<mxfile host="app.diagrams.net" modified="2026-07-28T03:47:00.000Z" agent="Grok" version="24.7.0" type="device">
   <diagram id="deephaven-entra-setup" name="Deephaven Entra ID Setup Architecture">
-    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+    <mxGraphModel dx="1680" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1400" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="title" value="Deephaven + Microsoft Entra ID - Direct Integration Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="150" y="20" width="1300" height="32" as="geometry"/>
+
+        <mxCell id="title" value="Deephaven + Microsoft Entra ID Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="120" y="20" width="1400" height="30" as="geometry"/>
         </mxCell>
-        <mxCell id="subtitle" value="Two app registrations · Client credentials (daemon) · JWT validation on Deephaven · No Keycloak broker" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#545B64;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="150" y="50" width="1300" height="24" as="geometry"/>
+        <mxCell id="subtitle" value="Daemon client credentials · User SSO + Microsoft Authenticator (Web UI) · JWT validation on Deephaven" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#545B64;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="120" y="50" width="1400" height="24" as="geometry"/>
         </mxCell>
+
         <mxCell id="clients-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#D5DBDB;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="40" y="90" width="280" height="420" as="geometry"/>
+          <mxGeometry x="30" y="90" width="300" height="520" as="geometry"/>
         </mxCell>
-        <mxCell id="clients-header" value="Runtime Clients (your PC / EKS)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="55" y="100" width="250" height="24" as="geometry"/>
+        <mxCell id="clients-header" value="Clients" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="45" y="100" width="250" height="24" as="geometry"/>
         </mxCell>
-        <mxCell id="simulator" value="OrderSimulator&#10;Daemon / service account&#10;MSAL ConfidentialClientApplication&#10;grant_type=client_credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;fontStyle=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="60" y="140" width="240" height="80" as="geometry"/>
+
+        <mxCell id="simulator" value="OrderSimulator&#10;Daemon / service account&#10;MSAL client credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="130" width="260" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="subscriber" value="OrderSubscriber&#10;Interactive user (optional)&#10;MSAL PublicClientApplication&#10;device code or ROPC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="60" y="240" width="240" height="80" as="geometry"/>
+
+        <mxCell id="webui" value="Deephaven Web UI (browser)&#10;User-facing login&#10;MSAL.js / auth code + PKCE&#10;Enterprise SSO + Authenticator MFA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;strokeWidth=2;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="220" width="260" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="env-box" value="Client env&#10;AUTH_PROVIDER=entra&#10;ENTRA_TENANT_ID&#10;ENTRA_CLIENT_ID (simulator)&#10;ENTRA_CLIENT_SECRET or cert&#10;ENTRA_SCOPE=api://.../.default" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F4FD;strokeColor=#1B74C4;fontFamily=Arial;fontSize=10;align=left;spacingLeft=8;verticalAlign=middle;shadow=0;" vertex="1" parent="1">
-          <mxGeometry x="60" y="340" width="240" height="140" as="geometry"/>
+
+        <mxCell id="subscriber" value="OrderSubscriber (CLI)&#10;Optional interactive user&#10;Device code (SSO + MFA capable)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="330" width="260" height="70" as="geometry"/>
         </mxCell>
+
+        <mxCell id="env-box" value="Auth modes&#10;Daemon: ENTRA_CLIENT_ID + secret/cert&#10;  scope = api://.../.default&#10;UI: public client + redirect URI&#10;  scope = api://.../access_as_user&#10;  + openid profile offline_access" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F4FD;strokeColor=#1B74C4;fontFamily=Arial;fontSize=10;align=left;spacingLeft=8;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="50" y="420" width="260" height="160" as="geometry"/>
+        </mxCell>
+
         <mxCell id="entra-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF5F5;strokeColor=#C23934;strokeWidth=2;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="360" y="90" width="520" height="620" as="geometry"/>
+          <mxGeometry x="360" y="90" width="540" height="700" as="geometry"/>
         </mxCell>
         <mxCell id="entra-header" value="Microsoft Entra ID (cloud tenant)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
           <mxGeometry x="380" y="100" width="400" height="26" as="geometry"/>
         </mxCell>
-        <mxCell id="api-app" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C23934;strokeWidth=2;verticalAlign=top;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="380" y="140" width="480" height="200" as="geometry"/>
+
+        <mxCell id="api-app" value="App: deephaven-api (resource / audience)&#10;- Application ID URI = api://API-CLIENT-ID&#10;- App role: Deephaven.Access (Applications)&#10;- Delegated scope for users: access_as_user&#10;- Token aud for Deephaven handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C23934;strokeWidth=2;fontFamily=Arial;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="140" width="500" height="110" as="geometry"/>
         </mxCell>
-        <mxCell id="api-title" value="App registration: deephaven-api (resource)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#C23934;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="395" y="150" width="450" height="22" as="geometry"/>
+
+        <mxCell id="sim-app" value="App: deephaven-order-simulator (confidential)&#10;- Client secret or certificate&#10;- Application permission: Deephaven.Access&#10;- Admin consent · public client flows = No" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D79B00;strokeWidth=2;fontFamily=Arial;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="270" width="500" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="api-body" value="- Application (client) ID = API app id&#10;- Application ID URI = api://API-CLIENT-ID&#10;- Expose an API, scope optional&#10;- App role: Deephaven.Access&#10;  (Allowed member types: Applications)&#10;- Token audience (aud) for Deephaven" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="395" y="180" width="450" height="140" as="geometry"/>
+
+        <mxCell id="web-app" value="App: deephaven-web-ui (public client for SSO)&#10;- Redirect URI = https://deephaven-host/&#10;- SPA / auth code + PKCE (MSAL.js)&#10;- Delegated permission on deephaven-api&#10;- No client secret (browser public client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0B5CAB;strokeWidth=2;fontFamily=Arial;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="380" width="500" height="120" as="geometry"/>
         </mxCell>
-        <mxCell id="sim-app" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D79B00;strokeWidth=2;verticalAlign=top;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="380" y="360" width="480" height="180" as="geometry"/>
+
+        <mxCell id="sso-box" value="Enterprise SSO + Microsoft Authenticator&#10;Entra hosted login · Conditional Access · MFA push / number match&#10;SSO cookie across Microsoft apps · no password in Deephaven UI&#10;Applies to Web UI and device-code CLI — NOT to client credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontFamily=Arial;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="520" width="500" height="100" as="geometry"/>
         </mxCell>
-        <mxCell id="sim-title" value="App registration: deephaven-order-simulator (client)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#8A5A00;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="395" y="370" width="450" height="22" as="geometry"/>
+
+        <mxCell id="token-ep" value="Token endpoint&#10;POST .../{tenant}/oauth2/v2.0/token&#10;App-only: .default  |  User: access_as_user + OIDC scopes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#C23934;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="400" y="645" width="460" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="sim-body" value="- Application (client) ID = ENTRA_CLIENT_ID&#10;- Client secret or uploaded public certificate&#10;- API permissions: Application permission&#10;  deephaven-api / Deephaven.Access&#10;- Grant admin consent for tenant&#10;- Allow public client flows = No" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="395" y="400" width="450" height="120" as="geometry"/>
-        </mxCell>
-        <mxCell id="token-ep" value="Token endpoint&#10;POST .../{tenant}/oauth2/v2.0/token&#10;scope = api://API-ID/.default" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#C23934;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="420" y="560" width="400" height="70" as="geometry"/>
-        </mxCell>
+
         <mxCell id="dh-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8F4FD;strokeColor=#1B74C4;strokeWidth=2;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="920" y="90" width="360" height="420" as="geometry"/>
+          <mxGeometry x="930" y="90" width="360" height="320" as="geometry"/>
         </mxCell>
         <mxCell id="dh-header" value="Deephaven Community Core" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#0B5CAB;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="935" y="100" width="320" height="24" as="geometry"/>
+          <mxGeometry x="945" y="100" width="320" height="24" as="geometry"/>
         </mxCell>
-        <mxCell id="dh-handler" value="EntraOidcAuthenticationHandler&#10;Spring Security NimbusJwtDecoder&#10;JWKS from issuer-uri&#10;Validate iss, exp, signature&#10;Optional audience check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="940" y="140" width="320" height="110" as="geometry"/>
+
+        <mxCell id="dh-handler" value="EntraOidcAuthenticationHandler&#10;Spring NimbusJwtDecoder + JWKS&#10;Validate iss, exp, signature, aud&#10;Same handler for daemon + UI tokens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=11;align=center;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="135" width="320" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="dh-cfg" value="Server config&#10;AuthHandlers =&#10;  ...entra.EntraOidcAuthenticationHandler&#10;issuer-uri =&#10;  https://login.microsoftonline.com/{tenant}/v2.0&#10;audience = api://API-CLIENT-ID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=10;align=left;spacingLeft=8;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="940" y="270" width="320" height="150" as="geometry"/>
+
+        <mxCell id="dh-cfg" value="Server config&#10;AuthHandlers = EntraOidc...&#10;issuer-uri = login.microsoftonline.com/{tenant}/v2.0&#10;audience = api://API-CLIENT-ID&#10;&#10;Deephaven does not host login UI.&#10;Browser redirects to Entra; token presented back." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1B74C4;fontFamily=Arial;fontSize=10;align=left;spacingLeft=8;verticalAlign=middle;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="245" width="320" height="140" as="geometry"/>
         </mxCell>
-        <mxCell id="dh-note" value="Deephaven never calls Entra to authenticate users. It only validates JWTs it receives." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#0B5CAB;fontFamily=Arial;fontStyle=2;" vertex="1" parent="1">
-          <mxGeometry x="940" y="440" width="320" height="50" as="geometry"/>
+
+        <mxCell id="ui-flow-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="930" y="430" width="360" height="280" as="geometry"/>
         </mxCell>
-        <mxCell id="flow-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#D5DBDB;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="920" y="530" width="360" height="280" as="geometry"/>
+        <mxCell id="ui-flow-header" value="UI user login flow (SSO + MFA)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#1B5E20;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="945" y="440" width="320" height="24" as="geometry"/>
         </mxCell>
-        <mxCell id="flow-header" value="Runtime flow (simulator)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="935" y="540" width="320" height="24" as="geometry"/>
+        <mxCell id="ui-flow-body" value="1. User opens Deephaven Web IDE&#10;2. MSAL.js redirects to Entra login&#10;3. Enterprise SSO (existing session)&#10;   or password + Microsoft Authenticator&#10;4. Auth code returned to browser (PKCE)&#10;5. MSAL.js exchanges code for tokens&#10;6. Access token sent to Deephaven&#10;7. Handler validates JWT, session starts&#10;&#10;Requires custom Entra JS login plugin&#10;(or Keycloak broker until plugin exists)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="945" y="475" width="330" height="220" as="geometry"/>
         </mxCell>
-        <mxCell id="flow-body" value="1. Simulator requests token from Entra&#10;   (client_id + secret/cert + scope)&#10;&#10;2. Entra returns access_token&#10;   (iss, aud, appid, roles)&#10;&#10;3. Simulator opens Barrage session&#10;   EntraOidcAuthenticationHandler + TOKEN&#10;&#10;4. Deephaven validates JWT via JWKS&#10;   and admits AuthContext&#10;&#10;5. Publish / subscribe to tables" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="935" y="575" width="330" height="220" as="geometry"/>
+
+        <mxCell id="daemon-flow" value="Daemon flow (no SSO)&#10;1. Client credentials to Entra&#10;2. App-only access token&#10;3. Token to Deephaven handler&#10;4. Publish / subscribe tables&#10;No user · No Authenticator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#D79B00;fontFamily=Arial;fontSize=11;align=left;spacingLeft=10;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="30" y="630" width="300" height="140" as="geometry"/>
         </mxCell>
+
         <mxCell id="check-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#D5DBDB;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="40" y="740" width="840" height="200" as="geometry"/>
+          <mxGeometry x="30" y="800" width="1260" height="200" as="geometry"/>
         </mxCell>
-        <mxCell id="check-header" value="Entra setup checklist (see entra-id-app-registration-setup.md)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="55" y="750" width="600" height="24" as="geometry"/>
+        <mxCell id="check-header" value="Setup checklist" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="45" y="810" width="400" height="24" as="geometry"/>
         </mxCell>
-        <mxCell id="check-body" value="1. Register deephaven-api, set Application ID URI, create app role Deephaven.Access&#10;2. Register deephaven-order-simulator, client secret or public certificate&#10;3. Simulator API permissions: Application permission on deephaven-api&#10;4. Grant admin consent for the tenant&#10;5. Scope for MSAL: api://API-CLIENT-ID/.default&#10;6. Verify token with curl + jwt.ms (iss, aud, appid)&#10;7. Point Deephaven issuer-uri + audience at same tenant / API URI&#10;8. Run OrderSimulator with AUTH_PROVIDER=entra" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="55" y="785" width="800" height="140" as="geometry"/>
+        <mxCell id="check-body" value="Daemon: deephaven-api + deephaven-order-simulator · app role · admin consent · client credentials · audience match&#10;UI SSO: register deephaven-web-ui (public/SPA) · redirect URI · delegated API permission · admin consent&#10;Conditional Access / MFA: require Microsoft Authenticator for user sign-in (not for client credentials)&#10;Web IDE: MSAL.js auth code + PKCE plugin hands token to Deephaven (or temporary Keycloak broker to Entra)&#10;CLI interactive: prefer device code over ROPC so SSO + Authenticator work&#10;Verify tokens at jwt.ms · align Deephaven issuer-uri and audience" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#232F3E;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="45" y="845" width="1220" height="140" as="geometry"/>
         </mxCell>
+
         <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#C23934;endArrow=block;endFill=1;" edge="1" parent="1" source="simulator" target="token-ep">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="320" y="180"/>
-              <mxPoint x="320" y="595"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="a1l" value="1. client credentials" style="edgeLabel;html=1;fontSize=10;fontColor=#C23934;" vertex="1" connectable="0" parent="a1">
-          <mxGeometry x="-0.2" relative="1" as="geometry">
-            <mxPoint as="offset"/>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#1B74C4;endArrow=block;endFill=1;" edge="1" parent="1" source="simulator" target="dh-handler">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="200" y="120"/>
-              <mxPoint x="900" y="120"/>
-              <mxPoint x="900" y="195"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="a3l" value="3. Bearer token to Deephaven" style="edgeLabel;html=1;fontSize=10;fontColor=#1B74C4;" vertex="1" connectable="0" parent="a3">
-          <mxGeometry x="0.1" relative="1" as="geometry">
-            <mxPoint as="offset"/>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;strokeColor=#8C4FFF;endArrow=block;endFill=1;dashed=1;" edge="1" parent="1" source="sim-app" target="api-app">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="a4l" value="API permission + admin consent" style="edgeLabel;html=1;fontSize=10;fontColor=#5A2D9C;" vertex="1" connectable="0" parent="a4">
-          <mxGeometry x="0.1" relative="1" as="geometry">
-            <mxPoint as="offset"/>
-          </mxGeometry>
+        <mxCell id="a1l" value="daemon token" style="edgeLabel;html=1;fontSize=10;fontColor=#C23934;" vertex="1" connectable="0" parent="a1">
+          <mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
         </mxCell>
-        <mxCell id="footer" value="docs/oidc/deephaven-entra-id-setup-architecture.drawio · 2026-07-27" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#879596;fontFamily=Arial;" vertex="1" parent="1">
-          <mxGeometry x="40" y="1160" width="1240" height="20" as="geometry"/>
+
+        <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#2E7D32;endArrow=block;endFill=1;" edge="1" parent="1" source="webui" target="web-app">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a2l" value="UI redirect / SSO" style="edgeLabel;html=1;fontSize=10;fontColor=#1B5E20;" vertex="1" connectable="0" parent="a2">
+          <mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#1B74C4;endArrow=block;endFill=1;" edge="1" parent="1" source="simulator" target="dh-handler">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a3l" value="Bearer token" style="edgeLabel;html=1;fontSize=10;fontColor=#1B74C4;" vertex="1" connectable="0" parent="a3">
+          <mxGeometry x="0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <mxCell id="footer" value="docs/oidc/deephaven-entra-id-setup-architecture.drawio · includes UI SSO + Microsoft Authenticator · 2026-07-27" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#879596;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1360" width="1260" height="20" as="geometry"/>
         </mxCell>
       </root>
     </mxGraphModel>
