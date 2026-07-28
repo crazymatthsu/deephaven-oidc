@@ -8,6 +8,7 @@ rootProject.name = "deephaven-oidc"
 include("deephaven-keycloak-oidc-common")
 include("deephaven-keycloak-oidc-client")
 include("deephaven-keycloak-oidc-server")
+include("deephaven-entra-oidc-server")
 
 dependencyResolutionManagement {
     repositories {

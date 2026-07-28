@@ -1,0 +1,55 @@
+// Direct Microsoft Entra ID (Azure AD) authentication for Deephaven Community Core — no Keycloak.
+//
+//   - Java: io.deephaven.oidc.entra.EntraOidcAuthenticationHandler (Spring Security JwtDecoder
+//     validating Entra-issued access tokens against the tenant JWKS)
+//   - docker/deephaven/   - Deephaven image with the handler fat jar + orders demo app
+//   - compose.yaml        - podman/docker compose stack (Deephaven only; Entra ID is the IdP)
+//
+// Build the deployable fat jar (handler + Spring Security + Nimbus, single file for EXTRA_CLASSPATH):
+//   ./gradlew :deephaven-entra-oidc-server:fatJar
+// Output: build/libs/deephaven-entra-oidc-auth-all.jar
+//
+// Bring the stack up with (requires ENTRA_TENANT_ID, ENTRA_AUDIENCE in the environment):
+//   scripts/start.sh entra
+
+plugins {
+    `java-library`
+}
+
+dependencies {
+    // Deephaven authentication SPI (AuthenticationRequestHandler, AuthContext) — provided by the server.
+    compileOnly(libs.deephaven.authentication)
+
+    // Spring Security — concise JWT validation against Entra ID JWKS.
+    implementation(libs.spring.security.oauth2.resource.server)
+    implementation(libs.spring.security.oauth2.jose)
+}
+
+tasks.jar {
+    archiveBaseName.set("deephaven-entra-oidc-auth")
+}
+
+// Self-contained jar for the Deephaven server EXTRA_CLASSPATH: the handler plus its full runtime
+// closure (Spring Security oauth2 jose/resource-server, Nimbus JOSE+JWT, ...). Mirrors how the
+// published deephaven-oidc-authentication-provider ships as a single fat jar.
+//
+// Deliberately NOT bundled: an slf4j binding (the Deephaven server provides its own logging
+// backend; shipping another binding would conflict) and the Deephaven auth SPI (compileOnly —
+// present on the server already).
+tasks.register<Jar>("fatJar") {
+    group = "build"
+    description = "Builds the self-contained Entra OIDC handler jar for the Deephaven EXTRA_CLASSPATH"
+    archiveBaseName.set("deephaven-entra-oidc-auth")
+    archiveClassifier.set("all")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(sourceSets.main.get().output)
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }) {
+        // Signed-jar metadata is invalid once repackaged.
+        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+        // JPMS descriptors from individual deps don't apply to a merged jar.
+        exclude("module-info.class", "META-INF/versions/*/module-info.class")
+        // Never bundle a logging backend into the server (see note above).
+        exclude("org/slf4j/impl/**")
+    }
+}

@@ -23,7 +23,8 @@ tasks.register<JavaExec>("runSimulator") {
 
 tasks.register<JavaExec>("runSubscriber") {
     group = "demo"
-    description = "Subscribes to the caller's entitled orders view over Barrage. Use -Puser=alice -Ppassword=alice"
+    description = "Subscribes to the caller's entitled orders view over Barrage. Keycloak/ROPC: -Puser=alice -Ppassword=alice. " +
+            "Entra device-code/interactive flows need no credentials (sign in via browser + Authenticator MFA)."
     mainClass = "io.deephaven.oidc.demo.client.OrderSubscriber"
     classpath = sourceSets.main.get().runtimeClasspath
     jvmArgs(demoJvmArgs)

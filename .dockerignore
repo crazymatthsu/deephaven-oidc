@@ -1,0 +1,10 @@
+# The Entra image (deephaven-entra-oidc-server/docker/deephaven/Dockerfile) builds with the repo
+# root as context so it can COPY the Gradle-built fat jar and the shared app.d. Keep the context
+# small: exclude everything heavy, then re-include exactly what the Dockerfiles COPY.
+.git
+.gradle
+.idea
+**/build
+**/.gradle
+# Re-include the fat jar the Entra Dockerfile needs (built by :deephaven-entra-oidc-server:fatJar).
+!deephaven-entra-oidc-server/build/libs/deephaven-entra-oidc-auth-all.jar
