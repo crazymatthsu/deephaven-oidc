@@ -3,6 +3,7 @@ deephaven = "0.39.4"
 jackson = "2.18.2"
 slf4j = "2.0.16"
 spring-security = "6.4.2"
+msal4j = "1.25.0"
 
 [libraries]
 deephaven-client-barrage = { module = "io.deephaven:deephaven-java-client-barrage", version.ref = "deephaven" }
@@ -13,3 +14,4 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", ver
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 spring-security-oauth2-resource-server = { module = "org.springframework.security:spring-security-oauth2-resource-server", version.ref = "spring-security" }
 spring-security-oauth2-jose = { module = "org.springframework.security:spring-security-oauth2-jose", version.ref = "spring-security" }
+msal4j = { module = "com.microsoft.azure:msal4j", version.ref = "msal4j" }
