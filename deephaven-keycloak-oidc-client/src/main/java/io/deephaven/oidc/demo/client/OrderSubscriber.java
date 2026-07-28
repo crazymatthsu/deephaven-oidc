@@ -10,9 +10,10 @@ import io.deephaven.engine.table.impl.InstrumentedTableUpdateListener;
 import io.deephaven.engine.util.TableTools;
 import io.deephaven.extensions.barrage.BarrageSubscriptionOptions;
 import io.deephaven.oidc.demo.common.AppConfig;
+import io.deephaven.oidc.demo.common.AppConfig.AuthProvider;
 import io.deephaven.oidc.demo.common.DeephavenSessions;
+import io.deephaven.oidc.demo.common.EntraTokenClient;
 import io.deephaven.oidc.demo.common.KeycloakTokenClient;
-import io.deephaven.oidc.demo.common.KeycloakTokenClient.Token;
 import io.deephaven.util.SafeCloseable;
 import io.deephaven.util.annotations.ReferentialIntegrity;
 
@@ -22,13 +23,21 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Logs in to Keycloak as a demo user (password grant), inspects the realm roles carried by the access token, and
- * subscribes over Barrage to the orders view that role is entitled to. Run as different users to see row-level
- * security in action: alice sees only US orders, bob only EMEA, carol everything.
+ * Logs in as a demo user, inspects roles on the access token, and subscribes over Barrage to the
+ * entitled orders view.
+ *
+ * <p>Authentication:
+ * <ul>
+ *   <li>{@code AUTH_PROVIDER=keycloak} (default) — Keycloak password grant</li>
+ *   <li>{@code AUTH_PROVIDER=entra} — MSAL username/password (ROPC) against Entra ID. The tenant must
+ *       allow ROPC for the public app; production should prefer device-code or interactive flows.</li>
+ * </ul>
+ *
+ * <p>Run as different users to see row-level security: alice → US, bob → EMEA, carol → all.
  */
 public final class OrderSubscriber {
 
-    /** Realm role → application field published by the server-side orders app. First match wins. */
+    /** Role claim value → application field published by the server-side orders app. First match wins. */
     private static final Map<String, String> VIEW_BY_ROLE = new LinkedHashMap<>();
     static {
         VIEW_BY_ROLE.put("dh-admin", "orders_all");
@@ -43,22 +52,34 @@ public final class OrderSubscriber {
         AppConfig config = AppConfig.fromEnv();
         System.out.println("Order subscriber starting with " + config);
 
-        KeycloakTokenClient tokens = new KeycloakTokenClient(config);
-        Token token = tokens.passwordGrant(user, password);
-        List<String> roles = KeycloakTokenClient.realmRoles(token.accessToken());
-        System.out.println("Authenticated to Keycloak as '" + user + "' with realm roles " + roles);
+        String accessToken;
+        List<String> roles;
+        if (config.authProvider() == AuthProvider.ENTRA) {
+            EntraTokenClient tokens = new EntraTokenClient(config);
+            EntraTokenClient.Token token = tokens.usernamePasswordGrant(user, password);
+            accessToken = token.accessToken();
+            roles = EntraTokenClient.rolesFromToken(accessToken);
+            System.out.println("Authenticated to Entra ID as '" + user + "' with roles " + roles);
+        } else {
+            KeycloakTokenClient tokens = new KeycloakTokenClient(config);
+            KeycloakTokenClient.Token token = tokens.passwordGrant(user, password);
+            accessToken = token.accessToken();
+            roles = KeycloakTokenClient.realmRoles(accessToken);
+            System.out.println("Authenticated to Keycloak as '" + user + "' with realm roles " + roles);
+        }
 
         String view = VIEW_BY_ROLE.entrySet().stream()
                 .filter(e -> roles.contains(e.getKey()))
                 .map(Map.Entry::getValue)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("User '" + user + "' holds none of the entitled roles "
-                        + VIEW_BY_ROLE.keySet() + "; nothing to subscribe to."));
+                        + VIEW_BY_ROLE.keySet() + "; nothing to subscribe to. "
+                        + "For Entra, assign app roles or groups matching these names."));
         System.out.println("Entitled view for '" + user + "': " + view);
 
         CountDownLatch done = new CountDownLatch(1);
         try (DeephavenSessions sessions = DeephavenSessions.connect(config);
-                BarrageSession session = sessions.newSession(token.accessToken());
+                BarrageSession session = sessions.newSession(accessToken);
                 SafeCloseable ignoredContext = sessions.openExecutionContext();
                 SafeCloseable ignoredScope = LivenessScopeStack.open();
                 TableHandle handle = OrdersSchema.fetch(session, config.applicationId(), view)) {

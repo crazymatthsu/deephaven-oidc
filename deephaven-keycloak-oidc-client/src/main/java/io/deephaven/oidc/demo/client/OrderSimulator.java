@@ -3,9 +3,10 @@ package io.deephaven.oidc.demo.client;
 import io.deephaven.client.impl.BarrageSession;
 import io.deephaven.client.impl.TableHandle;
 import io.deephaven.oidc.demo.common.AppConfig;
+import io.deephaven.oidc.demo.common.AppConfig.AuthProvider;
 import io.deephaven.oidc.demo.common.DeephavenSessions;
+import io.deephaven.oidc.demo.common.EntraTokenClient;
 import io.deephaven.oidc.demo.common.KeycloakTokenClient;
-import io.deephaven.oidc.demo.common.KeycloakTokenClient.Token;
 import io.deephaven.qst.column.header.ColumnHeader;
 import io.deephaven.qst.table.NewTable;
 
@@ -21,8 +22,12 @@ import java.util.concurrent.TimeUnit;
  * {@code OrderId}, re-publishing an existing id updates that row in place (status transitions, fills), while new ids
  * append.
  *
- * <p>Authenticates to Keycloak with the {@code order-simulator} service account (client-credentials grant) and then to
- * Deephaven with the resulting access token.
+ * <p>Authentication:
+ * <ul>
+ *   <li>{@code AUTH_PROVIDER=keycloak} (default) — Keycloak client-credentials for {@code order-simulator}</li>
+ *   <li>{@code AUTH_PROVIDER=entra} — MSAL client-credentials against Entra ID
+ *       ({@code ENTRA_TENANT_ID}, {@code ENTRA_CLIENT_ID}, {@code ENTRA_CLIENT_SECRET}, {@code ENTRA_SCOPE})</li>
+ * </ul>
  */
 public final class OrderSimulator {
 
@@ -43,20 +48,33 @@ public final class OrderSimulator {
 
     public static void main(String[] args) throws Exception {
         AppConfig config = AppConfig.fromEnv();
-        String simClientId = System.getenv().getOrDefault("KC_SIM_CLIENT_ID", "order-simulator");
-        String simSecret = System.getenv().getOrDefault("KC_SIM_CLIENT_SECRET", "order-simulator-secret");
-
         System.out.println("Order simulator starting with " + config);
-        KeycloakTokenClient tokens = new KeycloakTokenClient(config);
-        Token token = tokens.clientCredentialsGrant(simClientId, simSecret);
-        System.out.println("Authenticated to Keycloak as service account '" + simClientId + "'");
+
+        String accessToken = acquireAccessToken(config);
 
         try (DeephavenSessions sessions = DeephavenSessions.connect(config);
-                BarrageSession session = sessions.newSession(token.accessToken());
+                BarrageSession session = sessions.newSession(accessToken);
                 TableHandle orders = OrdersSchema.fetch(session, config.applicationId(), "orders")) {
             System.out.println("Connected to Deephaven; publishing orders (Ctrl-C to stop)...");
             run(sessions, session, orders);
         }
+    }
+
+    private static String acquireAccessToken(AppConfig config) {
+        if (config.authProvider() == AuthProvider.ENTRA) {
+            String secret = System.getenv().getOrDefault("ENTRA_CLIENT_SECRET", "");
+            EntraTokenClient tokens = new EntraTokenClient(config);
+            EntraTokenClient.Token token = tokens.clientCredentialsGrant(secret);
+            System.out.println("Authenticated to Entra ID as confidential client '" + config.entraClientId() + "'");
+            return token.accessToken();
+        }
+
+        String simClientId = System.getenv().getOrDefault("KC_SIM_CLIENT_ID", "order-simulator");
+        String simSecret = System.getenv().getOrDefault("KC_SIM_CLIENT_SECRET", "order-simulator-secret");
+        KeycloakTokenClient tokens = new KeycloakTokenClient(config);
+        KeycloakTokenClient.Token token = tokens.clientCredentialsGrant(simClientId, simSecret);
+        System.out.println("Authenticated to Keycloak as service account '" + simClientId + "'");
+        return token.accessToken();
     }
 
     private static void run(DeephavenSessions sessions, BarrageSession session, TableHandle orders) throws Exception {
