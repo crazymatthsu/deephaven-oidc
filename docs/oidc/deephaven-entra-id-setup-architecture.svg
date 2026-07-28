@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <rect width="1600" height="1200" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="800" y="36" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="#232F3E">Deephaven + Microsoft Entra ID — Direct Integration Architecture</text>
+  <text x="800" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#545B64">Two app registrations · Client credentials (daemon) · JWT validation on Deephaven · No Keycloak broker</text>
+
+  <!-- LEFT: Clients -->
+  <rect x="40" y="90" width="280" height="420" fill="#F7F9FC" stroke="#D5DBDB" stroke-width="1"/>
+  <text x="55" y="118" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#232F3E">Runtime Clients (your PC / EKS)</text>
+
+  <rect x="60" y="140" width="240" height="80" rx="8" fill="#FFFFFF" stroke="#1B74C4" stroke-width="2"/>
+  <text x="180" y="165" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#232F3E">OrderSimulator</text>
+  <text x="180" y="183" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#333">Daemon / service account</text>
+  <text x="180" y="199" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">MSAL ConfidentialClientApplication</text>
+  <text x="180" y="214" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">grant_type=client_credentials</text>
+
+  <rect x="60" y="240" width="240" height="80" rx="8" fill="#FFFFFF" stroke="#1B74C4" stroke-width="2"/>
+  <text x="180" y="265" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#232F3E">OrderSubscriber</text>
+  <text x="180" y="283" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#333">Interactive user (optional)</text>
+  <text x="180" y="299" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">MSAL PublicClientApplication</text>
+  <text x="180" y="314" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">device code or ROPC</text>
+
+  <rect x="60" y="340" width="240" height="140" rx="8" fill="#E8F4FD" stroke="#1B74C4" stroke-width="1"/>
+  <text x="75" y="365" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#232F3E">Client env</text>
+  <text x="75" y="388" font-family="Arial,sans-serif" font-size="10" fill="#333">AUTH_PROVIDER=entra</text>
+  <text x="75" y="406" font-family="Arial,sans-serif" font-size="10" fill="#333">ENTRA_TENANT_ID</text>
+  <text x="75" y="424" font-family="Arial,sans-serif" font-size="10" fill="#333">ENTRA_CLIENT_ID (simulator)</text>
+  <text x="75" y="442" font-family="Arial,sans-serif" font-size="10" fill="#333">ENTRA_CLIENT_SECRET or cert</text>
+  <text x="75" y="460" font-family="Arial,sans-serif" font-size="10" fill="#333">ENTRA_SCOPE=api://…/.default</text>
+
+  <!-- CENTER: Entra -->
+  <rect x="360" y="90" width="520" height="620" fill="#FFF5F5" stroke="#C23934" stroke-width="2"/>
+  <text x="380" y="118" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#232F3E">Microsoft Entra ID (cloud tenant)</text>
+
+  <rect x="380" y="140" width="480" height="200" rx="8" fill="#FFFFFF" stroke="#C23934" stroke-width="2"/>
+  <text x="395" y="168" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#C23934">App registration: deephaven-api  (resource)</text>
+  <text x="395" y="195" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Application (client) ID = API app id</text>
+  <text x="395" y="215" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Application ID URI = api://<api-client-id></text>
+  <text x="395" y="235" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Expose an API → scope (optional)</text>
+  <text x="395" y="255" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• App role: Deephaven.Access</text>
+  <text x="395" y="275" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">  (Allowed member types: Applications)</text>
+  <text x="395" y="295" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Token audience (aud) for Deephaven</text>
+
+  <rect x="380" y="360" width="480" height="180" rx="8" fill="#FFFFFF" stroke="#D79B00" stroke-width="2"/>
+  <text x="395" y="388" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#8A5A00">App registration: deephaven-order-simulator  (client)</text>
+  <text x="395" y="415" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Application (client) ID → ENTRA_CLIENT_ID</text>
+  <text x="395" y="435" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Client secret or uploaded public certificate</text>
+  <text x="395" y="455" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• API permissions → Application permission</text>
+  <text x="395" y="475" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">  deephaven-api / Deephaven.Access</text>
+  <text x="395" y="495" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Grant admin consent for tenant</text>
+  <text x="395" y="515" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">• Allow public client flows = No</text>
+
+  <rect x="420" y="560" width="400" height="70" rx="8" fill="#F8CECC" stroke="#C23934" stroke-width="1"/>
+  <text x="620" y="585" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#232F3E">Token endpoint</text>
+  <text x="620" y="605" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">POST …/{tenant}/oauth2/v2.0/token</text>
+  <text x="620" y="620" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">scope = api://<api-id>/.default</text>
+
+  <!-- RIGHT: Deephaven -->
+  <rect x="920" y="90" width="360" height="420" fill="#E8F4FD" stroke="#1B74C4" stroke-width="2"/>
+  <text x="935" y="118" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#0B5CAB">Deephaven Community Core</text>
+
+  <rect x="940" y="140" width="320" height="110" rx="8" fill="#FFFFFF" stroke="#1B74C4" stroke-width="2"/>
+  <text x="1100" y="165" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#232F3E">EntraOidcAuthenticationHandler</text>
+  <text x="1100" y="185" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">Spring Security NimbusJwtDecoder</text>
+  <text x="1100" y="202" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">JWKS from issuer-uri</text>
+  <text x="1100" y="219" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">Validate iss, exp, signature</text>
+  <text x="1100" y="236" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#333">Optional audience check</text>
+
+  <rect x="940" y="270" width="320" height="150" rx="8" fill="#FFFFFF" stroke="#1B74C4" stroke-width="2"/>
+  <text x="955" y="295" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#232F3E">Server config</text>
+  <text x="955" y="318" font-family="Arial,sans-serif" font-size="10" fill="#333">AuthHandlers =</text>
+  <text x="955" y="336" font-family="Arial,sans-serif" font-size="10" fill="#333">  …entra.EntraOidcAuthenticationHandler</text>
+  <text x="955" y="358" font-family="Arial,sans-serif" font-size="10" fill="#333">issuer-uri =</text>
+  <text x="955" y="376" font-family="Arial,sans-serif" font-size="10" fill="#333">  https://login.microsoftonline.com/</text>
+  <text x="955" y="392" font-family="Arial,sans-serif" font-size="10" fill="#333">  {tenant}/v2.0</text>
+  <text x="955" y="412" font-family="Arial,sans-serif" font-size="10" fill="#333">audience = api://<api-client-id></text>
+
+  <text x="940" y="450" font-family="Arial,sans-serif" font-size="11" font-style="italic" fill="#0B5CAB">Deephaven never calls Entra to</text>
+  <text x="940" y="468" font-family="Arial,sans-serif" font-size="11" font-style="italic" fill="#0B5CAB">authenticate users. It only</text>
+  <text x="940" y="486" font-family="Arial,sans-serif" font-size="11" font-style="italic" fill="#0B5CAB">validates JWTs it receives.</text>
+
+  <!-- Flow panel -->
+  <rect x="920" y="530" width="360" height="280" fill="#F7F9FC" stroke="#D5DBDB" stroke-width="1"/>
+  <text x="935" y="558" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#232F3E">Runtime flow (simulator)</text>
+  <text x="935" y="590" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">1. Simulator requests token from Entra</text>
+  <text x="950" y="608" font-family="Arial,sans-serif" font-size="10" fill="#545B64">(client_id + secret/cert + scope)</text>
+  <text x="935" y="635" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">2. Entra returns access_token</text>
+  <text x="950" y="653" font-family="Arial,sans-serif" font-size="10" fill="#545B64">(iss, aud, appid, roles)</text>
+  <text x="935" y="680" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">3. Simulator opens Barrage session:</text>
+  <text x="950" y="698" font-family="Arial,sans-serif" font-size="10" fill="#545B64">EntraOidcAuthenticationHandler <token></text>
+  <text x="935" y="725" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">4. Deephaven validates JWT via JWKS</text>
+  <text x="950" y="743" font-family="Arial,sans-serif" font-size="10" fill="#545B64">and admits AuthContext</text>
+  <text x="935" y="770" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">5. Publish / subscribe to tables</text>
+
+  <!-- Checklist -->
+  <rect x="40" y="740" width="840" height="200" fill="#F7F9FC" stroke="#D5DBDB" stroke-width="1"/>
+  <text x="55" y="768" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#232F3E">Entra setup checklist (see entra-id-app-registration-setup.md)</text>
+  <text x="55" y="798" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">1. Register deephaven-api → set Application ID URI → create app role Deephaven.Access (Applications)</text>
+  <text x="55" y="820" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">2. Register deephaven-order-simulator → client secret or upload public certificate</text>
+  <text x="55" y="842" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">3. Simulator → API permissions → Application permission on deephaven-api / Deephaven.Access</text>
+  <text x="55" y="864" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">4. Grant admin consent for the tenant</text>
+  <text x="55" y="886" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">5. Scope for MSAL: api://<api-client-id>/.default</text>
+  <text x="55" y="908" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">6. Verify token with curl + jwt.ms (iss, aud, appid)</text>
+  <text x="55" y="930" font-family="Arial,sans-serif" font-size="11" fill="#232F3E">7. Point Deephaven issuer-uri + audience at the same tenant / API URI</text>
+
+  <!-- Simple flow lines -->
+  <line x1="300" y1="180" x2="420" y2="595" stroke="#C23934" stroke-width="2"/>
+  <text x="310" y="360" font-family="Arial,sans-serif" font-size="10" fill="#C23934">1. client credentials</text>
+
+  <line x1="300" y1="160" x2="940" y2="195" stroke="#1B74C4" stroke-width="2"/>
+  <text x="500" y="150" font-family="Arial,sans-serif" font-size="10" fill="#1B74C4">3. Bearer token to Deephaven</text>
+
+  <line x1="620" y1="360" x2="620" y2="340" stroke="#8C4FFF" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="640" y="350" font-family="Arial,sans-serif" font-size="10" fill="#5A2D9C">API permission + admin consent</text>
+
+  <!-- Footer -->
+  <text x="800" y="1175" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#879596">docs/oidc/deephaven-entra-id-setup-architecture.svg  ·  See also entra-id-app-registration-setup.md  ·  2026-07-27</text>
+</svg>
