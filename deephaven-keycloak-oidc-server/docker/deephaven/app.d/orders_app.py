@@ -12,9 +12,12 @@ The views use where_in against the ticking entitlements table, so adding/removin
 entitlement row updates every affected view immediately - no restart needed.
 
 NOTE: open-source Deephaven has no built-in entitlement system (that is a Deephaven
-Enterprise feature). This is script-level filtering: it relies on clients only being handed
-the per-role views, and on the console being disabled in hardened deployments so users
-cannot reach the unfiltered `orders` table. See the repo README for the full caveats.
+Enterprise feature). Under the plain Keycloak stack this is script-level filtering only.
+The direct-Entra stack additionally enforces it server-side: each published table carries an
+`EntraEntitledRoles` attribute (comma-separated allowed roles) that the custom
+EntraAuthorizationProvider checks at ticket resolution — non-superusers can only fetch
+tables whose attribute matches one of their roles, and only `writer` may mutate `orders`.
+The attributes are inert on the Keycloak stack (no custom authorization provider there).
 """
 
 from deephaven import dtypes as dht
@@ -75,11 +78,21 @@ orders_us = _entitled_view("trader-us")
 orders_emea = _entitled_view("trader-emea")
 orders_all = _entitled_view("dh-admin")
 
+# Role entitlements enforced by the Entra stack's authorization provider (see module docstring).
+# with_attributes returns an attributed copy; the INPUT_TABLE attribute (and thus writability)
+# is preserved, so the simulator's keyed upserts through the published handle keep working.
+ENTITLED_ROLES_ATTR = "EntraEntitledRoles"
+
+
+def _entitled(table, roles: str):
+    return table.with_attributes({ENTITLED_ROLES_ATTR: roles})
+
+
 # Publish as application fields (ticket namespace a/orders-app/f/<name>); script globals are
 # not exported automatically.
 _app = get_app_state()
-_app["orders"] = orders
-_app["entitlements"] = entitlements
-_app["orders_us"] = orders_us
-_app["orders_emea"] = orders_emea
-_app["orders_all"] = orders_all
+_app["orders"] = _entitled(orders, "writer")
+_app["entitlements"] = _entitled(entitlements, "dh-admin")
+_app["orders_us"] = _entitled(orders_us, "trader-us,dh-admin")
+_app["orders_emea"] = _entitled(orders_emea, "trader-emea,dh-admin")
+_app["orders_all"] = _entitled(orders_all, "dh-admin")

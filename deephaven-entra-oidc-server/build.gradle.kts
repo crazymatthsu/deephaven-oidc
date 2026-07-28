@@ -22,6 +22,16 @@ dependencies {
     // LogOutput/LogOutputAppendable, needed to subclass AuthContext — also provided by the server.
     compileOnly(libs.deephaven.base)
 
+    // Role-based authorization: custom server assembly (ComponentFactoryBase/JettyServerModule),
+    // AuthWiring interfaces, engine Table for entitlement attributes. All provided by the server
+    // image at runtime — compileOnly keeps them out of the fat jar.
+    compileOnly(libs.deephaven.server.jetty)
+    compileOnly(libs.deephaven.extensions.flight.sql)
+    compileOnly(libs.deephaven.client.barrage) // BarrageSessionFactoryConfig.userAgent
+    compileOnly(libs.dagger)
+    // Dagger codegen runs at build time to generate our component (DaggerEntraServerComponent...).
+    annotationProcessor(libs.dagger.compiler)
+
     // Spring Security — concise JWT validation against Entra ID JWKS.
     implementation(libs.spring.security.oauth2.resource.server)
     implementation(libs.spring.security.oauth2.jose)

@@ -27,6 +27,21 @@ Done (this repo):
   become `SuperUser`; logins are logged with identity and roles. Covered by 10 unit tests running
   the handler against an embedded mock issuer (generated RSA JWKS + Nimbus-minted tokens) — a
   head start on Phase 5.
+- ✅ **Phase 2b: Server-side entitlement ENFORCEMENT** — implemented 2026-07-28 (the follow-on
+  the Phase 2 notes called "if/when needed"). Custom server assembly `EntraServerMain` +
+  `EntraAuthorizationProvider` (dagger, mirrors `CommunityComponentFactory` per the official
+  `server/jetty-app-custom` pattern; the unpublished `JettyClientChannelFactoryModule` is
+  replicated inline). `EntraTicketAuthorization.transform` gates every table fetch by the
+  `EntraEntitledRoles` table attribute (runs inside the session `ExecutionContext`, so the
+  caller's context is available — `SessionServiceGrpcImpl.rpcWrapper` opens it around every
+  call); `null` return = engine's deny idiom (filtered listings, NOT_FOUND fetches, no existence
+  leak). Input-table writes gated on the target's attribute (skip the caller's uploaded batch —
+  it has no attribute; only tables carrying `Table.INPUT_TABLE_ATTRIBUTE` are checked); consoles
+  superuser-only. Attributes are set by `orders_app.py` via `with_attributes` (preserves
+  input-table writability). **E2E-verified without a tenant**: mock issuer + openssl-minted role
+  tokens through the real Java clients (`ENTRA_ACCESS_TOKEN` testing hook) — writer publishes;
+  trader-us sees `orders_us` only; dh-admin sees all; trader-us/role-less users get NOT_FOUND on
+  the raw `orders` table; every denial audited in the server log.
 
 Remaining, in recommended order:
 

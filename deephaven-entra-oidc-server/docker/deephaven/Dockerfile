@@ -19,9 +19,16 @@ RUN npm run build
 # Stage 2: the server itself.
 FROM ghcr.io/deephaven/server:${DEEPHAVEN_VERSION}
 
-# Self-contained Entra OIDC handler (handler + Spring Security + Nimbus). Loaded via
+# Self-contained Entra OIDC handler + role-based authorization provider (handler + Spring
+# Security + Nimbus + EntraServerMain/EntraAuthorizationProvider). Loaded via
 # EXTRA_CLASSPATH=/apps/libs/* (set in compose.yaml).
 COPY --chmod=644 deephaven-entra-oidc-server/build/libs/deephaven-entra-oidc-auth-all.jar /apps/libs/
+
+# Launch the custom server assembly: identical to the community server except the allow-all
+# authorization is replaced by role-based entitlements (EntraAuthorizationProvider). The stock
+# start script hardcodes the main class, so swap it.
+RUN sed -i 's/io\.deephaven\.server\.jetty\.JettyMain/io.deephaven.oidc.entra.authz.EntraServerMain/' \
+    /opt/deephaven/server-jetty/bin/start
 
 # Browser login flow: the Entra/MSAL.js plugin (redirects the web IDE to login.microsoftonline.com;
 # enterprise SSO + Microsoft Authenticator MFA per tenant policy). Same js-plugins layout the

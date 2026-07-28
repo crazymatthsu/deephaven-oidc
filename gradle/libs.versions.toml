@@ -5,12 +5,19 @@ slf4j = "2.0.16"
 spring-security = "6.4.2"
 msal4j = "1.25.0"
 junit = "5.10.2"
+# Must match the dagger runtime shipped in ghcr.io/deephaven/server:0.39.4 (dagger-2.56.1.jar).
+dagger = "2.56.1"
 
 [libraries]
 deephaven-client-barrage = { module = "io.deephaven:deephaven-java-client-barrage", version.ref = "deephaven" }
 deephaven-oidc-provider = { module = "io.deephaven:deephaven-oidc-authentication-provider", version.ref = "deephaven" }
 deephaven-authentication = { module = "io.deephaven:deephaven-authentication", version.ref = "deephaven" }
 deephaven-base = { module = "io.deephaven:deephaven-Base", version.ref = "deephaven" }
+deephaven-server-jetty = { module = "io.deephaven:deephaven-server-jetty", version.ref = "deephaven" }
+deephaven-server-jetty-app = { module = "io.deephaven:deephaven-server-jetty-app", version.ref = "deephaven" }
+deephaven-extensions-flight-sql = { module = "io.deephaven:deephaven-extensions-flight-sql", version.ref = "deephaven" }
+dagger = { module = "com.google.dagger:dagger", version.ref = "dagger" }
+dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 deephaven-log-to-slf4j = { module = "io.deephaven:deephaven-log-to-slf4j", version.ref = "deephaven" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }

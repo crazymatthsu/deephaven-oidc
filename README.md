@@ -15,7 +15,8 @@ Two **switchable** identity implementations live side by side:
 | Java clients | default, or `AUTH_PROVIDER=keycloak` | `AUTH_PROVIDER=entra` (+ `ENTRA_*` vars) |
 | User MFA | Whatever the realm enforces (demo: none) | ✅ Microsoft Authenticator via device-code / interactive MSAL flows |
 | Web IDE login | ✅ works (Keycloak JS plugin) | ✅ built ([js-plugin-auth-entra](js-plugin-auth-entra): MSAL.js auth-code+PKCE — enterprise SSO + Authenticator MFA; needs `ENTRA_SPA_CLIENT_ID`/`ENTRA_WEB_SCOPE`) |
-| Status | Verified end-to-end locally | Build- and mock-issuer smoke-verified (plugin loads and redirects to Entra); live test pending a tenant ([setup guide](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide)) |
+| Row-level security | Script-level only (cooperative — any authenticated user can reach all rows) | ✅ **enforced server-side**: custom `AuthorizationProvider` gates every table fetch/write by Entra roles; consoles superuser-only ([details](deephaven-entra-oidc-server/README.md#server-side-entitlement-enforcement-custom-server-assembly)) |
+| Status | Verified end-to-end locally | Enforcement E2E-verified against a mock issuer with minted role tokens; live Entra sign-in pending a tenant ([setup guide](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide)) |
 
 Remaining Entra work is planned in detail in
 [`docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md`](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md).
@@ -58,11 +59,17 @@ Because the views filter *through the ticking entitlements table*, adding or del
 in the IDE updates every affected subscriber immediately. Clients decode the realm roles from their own
 access token and subscribe to the matching view.
 
-> **Honest caveat:** open-source Deephaven has **no built-in entitlement system** (that's a Deephaven
-> Enterprise feature). This is *script-level* filtering: any authenticated user who can run console code
-> or fetch the `orders` field directly can see all rows. The hardened EKS deployment therefore disables
-> the console (`deephaven.console.disable=true`); real gRPC-layer enforcement options are discussed in
+> **Honest caveat (Keycloak stack):** open-source Deephaven has **no built-in entitlement system**
+> (that's a Deephaven Enterprise feature). On the Keycloak stack this is *script-level* filtering: any
+> authenticated user who can run console code or fetch the `orders` field directly can see all rows.
+> The hardened EKS deployment therefore disables the console; gRPC-layer options are discussed in
 > [`deploy/eks/DESIGN.md`](deploy/eks/DESIGN.md#authorization--row-level-security).
+>
+> **The direct Entra stack closes this gap**: its custom server assembly enforces the entitlements
+> server-side at ticket resolution — non-admin users *cannot* fetch tables their roles aren't entitled
+> to (regardless of client or route), input-table writes require the `writer` role, and consoles are
+> superuser-only. See the
+> [enforcement notes](deephaven-entra-oidc-server/README.md#server-side-entitlement-enforcement-custom-server-assembly).
 
 ## Switching between the two stacks
 

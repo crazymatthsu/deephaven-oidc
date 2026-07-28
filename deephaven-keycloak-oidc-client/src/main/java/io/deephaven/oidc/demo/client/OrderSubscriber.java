@@ -60,7 +60,14 @@ public final class OrderSubscriber {
 
         String accessToken;
         List<String> roles;
-        if (config.authProvider() == AuthProvider.ENTRA) {
+        String presetToken = System.getenv("ENTRA_ACCESS_TOKEN");
+        if (config.authProvider() == AuthProvider.ENTRA && presetToken != null && !presetToken.isBlank()) {
+            // Testing/advanced hook: use a pre-acquired token (e.g. minted against a mock issuer,
+            // or obtained out-of-band) instead of an MSAL flow.
+            accessToken = presetToken.trim();
+            roles = EntraTokenClient.rolesFromToken(accessToken);
+            System.out.println("Using pre-acquired Entra access token (ENTRA_ACCESS_TOKEN) with roles " + roles);
+        } else if (config.authProvider() == AuthProvider.ENTRA) {
             EntraTokenClient tokens = new EntraTokenClient(config);
             EntraTokenClient.Token token = switch (config.entraUserFlow()) {
                 // MFA-capable flows: identity comes from whoever completes the browser sign-in;

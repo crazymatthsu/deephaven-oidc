@@ -62,6 +62,12 @@ public final class OrderSimulator {
 
     private static String acquireAccessToken(AppConfig config) {
         if (config.authProvider() == AuthProvider.ENTRA) {
+            String presetToken = System.getenv("ENTRA_ACCESS_TOKEN");
+            if (presetToken != null && !presetToken.isBlank()) {
+                // Testing/advanced hook: pre-acquired token instead of MSAL client credentials.
+                System.out.println("Using pre-acquired Entra access token (ENTRA_ACCESS_TOKEN)");
+                return presetToken.trim();
+            }
             String secret = System.getenv().getOrDefault("ENTRA_CLIENT_SECRET", "");
             EntraTokenClient tokens = new EntraTokenClient(config);
             EntraTokenClient.Token token = tokens.clientCredentialsGrant(secret);

@@ -16,6 +16,7 @@ The Keycloak implementation lives in the sibling module
 | User MFA (Microsoft Authenticator) | ✅ device-code and interactive browser flows in the clients |
 | Web IDE (browser) login | ✅ implemented — [`js-plugin-auth-entra`](../js-plugin-auth-entra) (MSAL.js auth-code+PKCE, enterprise SSO + Authenticator MFA), baked into this image; smoke-verified against a mock issuer, live tenant test pending |
 | Per-user identity / roles on the server | ✅ `EntraUserAuthContext` carries `oid`/username/roles; only `ENTRA_SUPERUSER_ROLES` (default `dh-admin`) become SuperUser; unit-tested against a mock issuer |
+| **Server-side entitlement enforcement** | ✅ custom server assembly (`EntraServerMain` + `EntraAuthorizationProvider`): non-superusers can only fetch tables whose `EntraEntitledRoles` attribute matches one of their roles (any route — Flight/Barrage/web); input-table writes need an entitled role (`writer`); consoles are superuser-only. E2E-verified against a mock issuer with minted role tokens |
 
 ## Contents
 
@@ -69,9 +70,31 @@ Identity mapping: tokens holding one of the `superuser-roles` claims become Deep
 `SuperUser`; every other valid token is admitted as `EntraUserAuthContext` carrying the
 principal's `oid`, username (`preferred_username`/`upn`, or the app id for service principals),
 and `roles`/`groups` claims. Each login is logged as `Entra login: user=... roles=[...]`.
-Note: Community's default authorization permits all operations regardless of context — the
-context is for auditing and future custom `AuthorizationProvider` wiring; script-level RLS
-remains the enforcement point.
+
+## Server-side entitlement enforcement (custom server assembly)
+
+The compose stack does **not** run the stock community server: the image swaps the launch class
+to `io.deephaven.oidc.entra.authz.EntraServerMain`, a dagger assembly identical to Deephaven's
+`CommunityComponentFactory` except the allow-all authorization is replaced by
+`EntraAuthorizationProvider` (following deephaven-core's official `server/jetty-app-custom`
+pattern). Enforcement model:
+
+- **Ticket resolution** (`EntraTicketAuthorization`): every fetch route — Flight
+  DoGet/getFlightInfo, Barrage subscriptions, session exports, web IDE object fetches — funnels
+  through `TicketResolver.Authorization.transform`, which runs inside the calling session's
+  `ExecutionContext`. Published tables carry a comma-separated `EntraEntitledRoles` attribute
+  (set by [`orders_app.py`](../deephaven-keycloak-oidc-server/docker/deephaven/app.d/orders_app.py));
+  superusers bypass, other users need a matching role. Denials return the engine's null idiom
+  (listings are filtered; direct fetches surface NOT_FOUND — table existence isn't leaked) and
+  are logged: `Denied table access: user=... roles=[...] entitledRoles=...`.
+- **Input-table writes** (`EntraInputTableAuthWiring`): mutating a published input table
+  requires an entitled role on the target — the demo grants `writer` on the raw `orders` table.
+- **Console** (`EntraConsoleAuthWiring`): StartConsole/ExecuteCommand/BindTableToVariable are
+  superuser-only, closing the run-arbitrary-code bypass.
+
+Demo policy (attribute values): `orders`→`writer`, `orders_us`→`trader-us,dh-admin`,
+`orders_emea`→`trader-emea,dh-admin`, `orders_all`→`dh-admin`, `entitlements`→`dh-admin`.
+The attributes are inert on the Keycloak stack (stock allow-all server there).
 
 Environment variable equivalents: `AUTHENTICATION_OIDC_ENTRA_ISSUER_URI`,
 `AUTHENTICATION_OIDC_ENTRA_AUDIENCE`.

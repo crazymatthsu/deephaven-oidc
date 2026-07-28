@@ -16,6 +16,7 @@ see [`deephaven-entra-oidc-server/README.md`](../deephaven-entra-oidc-server/REA
 | `ENTRA_CLIENT_SECRET` | simulator only | Confidential client secret |
 | `DH_HOST` / `DH_PORT` / `DH_TLS` | as needed | Deephaven endpoint |
 | `DH_USER` / `DH_PASSWORD` | `ropc` flow only | Legacy username/password (no MFA) |
+| `ENTRA_ACCESS_TOKEN` | testing only | Pre-acquired token; skips MSAL entirely (used by the mock-issuer E2E tests) |
 
 ## User flows and Microsoft Authenticator MFA
 
