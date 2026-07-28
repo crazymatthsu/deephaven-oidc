@@ -3,17 +3,20 @@
 # access tokens against the tenant's JWKS at startup/login time, so it needs outbound HTTPS.
 #
 # Required environment (see .env.example; compose fails fast if missing):
-#   ENTRA_TENANT_ID   directory (tenant) ID
-#   ENTRA_AUDIENCE    expected aud, e.g. api://<app-id-uri> or the API app's client ID
+#   ENTRA_TENANT_ID      directory (tenant) ID
+#   ENTRA_AUDIENCE       expected aud, e.g. api://<app-id-uri> or the API app's client ID
+# Optional (browser IDE login — enterprise SSO + Microsoft Authenticator MFA):
+#   ENTRA_SPA_CLIENT_ID  SPA app registration client ID
+#   ENTRA_WEB_SCOPE      delegated scope for the web UI, e.g. api://<app-id-uri>/access_as_user
+# Optional (testing):
+#   ENTRA_ISSUER_URI     override the token issuer (defaults to the real Entra endpoint); lets a
+#                        local mock IdP serve discovery/JWKS for offline smoke tests
 #
 # Run with:
 #   scripts/start.sh entra
 # or manually:
 #   ./gradlew :deephaven-entra-oidc-server:fatJar
 #   podman compose -f deephaven-entra-oidc-server/compose.yaml up --build
-#
-# NOTE: browser IDE login is not available in this stack yet (no Entra JS login plugin);
-# use the Java clients with AUTH_PROVIDER=entra. See docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md.
 name: deephaven-entra-oidc
 
 services:
@@ -29,9 +32,12 @@ services:
       START_OPTS: >-
         -Xmx2g
         -DAuthHandlers=io.deephaven.oidc.entra.EntraOidcAuthenticationHandler
-        -Dauthentication.oidc.entra.issuer-uri=https://login.microsoftonline.com/${ENTRA_TENANT_ID:?set ENTRA_TENANT_ID (directory/tenant id)}/v2.0
+        -Dauthentication.oidc.entra.issuer-uri=${ENTRA_ISSUER_URI:-https://login.microsoftonline.com/${ENTRA_TENANT_ID:?set ENTRA_TENANT_ID (directory/tenant id)}/v2.0}
         -Dauthentication.oidc.entra.audience=${ENTRA_AUDIENCE:?set ENTRA_AUDIENCE (e.g. api://<app-id-uri>)}
-        -Dauthentication.client.configuration.list=AuthHandlers
+        -Dauthentication.oidc.entra.tenant-id=${ENTRA_TENANT_ID}
+        -Dauthentication.oidc.entra.spa-client-id=${ENTRA_SPA_CLIENT_ID:-}
+        -Dauthentication.oidc.entra.scope=${ENTRA_WEB_SCOPE:-}
+        -Dauthentication.client.configuration.list=AuthHandlers,authentication.oidc.entra.tenant-id,authentication.oidc.entra.spa-client-id,authentication.oidc.entra.scope
         -Ddeephaven.application.dir=/app.d
     # The handler fetches Entra's discovery document/JWKS during initialize(); restart covers
     # transient network failures at boot.

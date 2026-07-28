@@ -7,8 +7,9 @@
 #   entra               Deephaven only, validating tokens directly against Microsoft Entra ID.
 #                       Requires ENTRA_TENANT_ID and ENTRA_AUDIENCE in the environment (or a .env file
 #                       next to deephaven-entra-oidc-server/compose.yaml — see its .env.example).
-#                       NOTE: no web IDE login yet in this mode; use the Java clients with
-#                       AUTH_PROVIDER=entra (device-code sign-in with Microsoft Authenticator MFA).
+#                       Web IDE login (enterprise SSO + Microsoft Authenticator MFA) additionally
+#                       needs ENTRA_SPA_CLIENT_ID and ENTRA_WEB_SCOPE; Java clients use
+#                       AUTH_PROVIDER=entra (device-code sign-in with Authenticator MFA).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -74,7 +75,7 @@ if [[ "$MODE" == "entra" ]]; then
 
 Entra stack is ready.
 
-  Deephaven       $DH_URL   (gRPC/Barrage clients only — web IDE login for Entra is not built yet)
+  Deephaven IDE   $DH_URL/ide   (browser SSO + Authenticator MFA if ENTRA_SPA_CLIENT_ID/ENTRA_WEB_SCOPE are set)
   Identity        Microsoft Entra ID (tenant \${ENTRA_TENANT_ID})
 
 Next steps (AUTH_PROVIDER=entra; see deephaven-keycloak-oidc-client/README-ENTRA.md):

@@ -15,12 +15,17 @@ Done (this repo):
   Authenticator MFA), ROPC kept only as a legacy fallback; shared MSAL cache + `acquireSilently()`.
 - ✅ **Switchable stacks** — Keycloak (`deephaven-keycloak-oidc-server`) and direct Entra
   (`deephaven-entra-oidc-server`) side by side; clients switch with `AUTH_PROVIDER`.
+- ✅ **Phase 1: Web IDE login via MSAL.js** — implemented 2026-07-27 as
+  [`js-plugin-auth-entra`](../../js-plugin-auth-entra) (details below kept as as-built reference).
+  Smoke-verified against a mock issuer: plugin loads in the IDE, `isAvailable` matches the Entra
+  handler, and MSAL redirects to `login.microsoftonline.com` with the correct client_id/scope/PKCE
+  parameters. **Live tenant validation still pending** (needs Phase 4).
 
 Remaining, in recommended order:
 
 | Phase | What | Effort | Unblocks |
 |---|---|---|---|
-| 1 | Web IDE login via MSAL.js | High | Browser users on the Entra stack |
+| 1 | Web IDE login via MSAL.js | ✅ done (live validation pending) | Browser users on the Entra stack |
 | 2 | Server-side identity & roles | Medium | Real per-user auditing; groundwork for authz |
 | 3 | Token lifecycle in long-running clients | Low | Daemons running past token expiry |
 | 4 | Entra tenant setup guide + live E2E test | Low (docs) + portal work | All live testing |
@@ -33,7 +38,18 @@ available; it needs no code.
 
 ---
 
-## Phase 1 — Web IDE login via MSAL.js
+## Phase 1 — Web IDE login via MSAL.js  ✅ IMPLEMENTED (as-built notes)
+
+> Implemented 2026-07-27: [`js-plugin-auth-entra`](../../js-plugin-auth-entra), built in a node
+> stage of the Entra Dockerfile and installed under `/js-plugins` with a manifest. Browser config
+> is exposed via `authentication.oidc.entra.tenant-id` / `spa-client-id` / `scope` on
+> `authentication.client.configuration.list` (compose env `ENTRA_SPA_CLIENT_ID`,
+> `ENTRA_WEB_SCOPE`). A `@deephaven/log` dependency was deliberately avoided (known shim-interop
+> bug). Offline smoke test: `ENTRA_ISSUER_URI` override + a local mock discovery/JWKS server lets
+> the stack boot without a tenant; the IDE then demonstrably redirects to
+> `login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize` with correct client_id, scope, and
+> S256 PKCE. Still to do live (needs Phase 4): complete a real sign-in + Authenticator MFA, token
+> handshake with the server, and >60-min renewal behavior.
 
 **Goal:** browser users open `http://localhost:10000/ide`, get redirected to the Entra sign-in
 page (Authenticator MFA happens natively there), and land in the IDE — the same UX the Keycloak

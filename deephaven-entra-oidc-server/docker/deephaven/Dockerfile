@@ -5,15 +5,30 @@
 #
 # Prerequisite:  ./gradlew :deephaven-entra-oidc-server:fatJar   (scripts/start.sh entra does this)
 #
-# NOTE: the web IDE has NO login path in this image yet — there is no published Entra/MSAL.js
-# login plugin for Deephaven Community. Only gRPC/Barrage clients (OrderSimulator/OrderSubscriber)
-# can authenticate. See docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md Phase 1 for the browser plugin plan.
 ARG DEEPHAVEN_VERSION=0.39.4
+
+# Stage 1: build the Entra web-login plugin (MSAL.js auth-code + PKCE). Node lives only in this
+# stage — the host needs no JS toolchain.
+FROM node:20-slim AS js-plugin
+WORKDIR /plugin
+COPY js-plugin-auth-entra/package.json ./
+RUN npm install --no-audit --no-fund
+COPY js-plugin-auth-entra/ ./
+RUN npm run build
+
+# Stage 2: the server itself.
 FROM ghcr.io/deephaven/server:${DEEPHAVEN_VERSION}
 
 # Self-contained Entra OIDC handler (handler + Spring Security + Nimbus). Loaded via
 # EXTRA_CLASSPATH=/apps/libs/* (set in compose.yaml).
 COPY --chmod=644 deephaven-entra-oidc-server/build/libs/deephaven-entra-oidc-auth-all.jar /apps/libs/
+
+# Browser login flow: the Entra/MSAL.js plugin (redirects the web IDE to login.microsoftonline.com;
+# enterprise SSO + Microsoft Authenticator MFA per tenant policy). Same js-plugins layout the
+# web-plugin-packager produces: <package-name>/dist/index.js + a root manifest.json.
+COPY --from=js-plugin /plugin/dist/ /opt/deephaven/config/js-plugins/@deephaven-oidc/js-plugin-auth-entra/dist/
+COPY --from=js-plugin /plugin/package.json /opt/deephaven/config/js-plugins/@deephaven-oidc/js-plugin-auth-entra/
+COPY deephaven-entra-oidc-server/docker/deephaven/js-plugins-manifest.json /opt/deephaven/config/js-plugins/manifest.json
 
 # Application-mode script: keyed orders input table, entitlements table, per-role views.
 # Shared with the Keycloak stack (canonical copy lives in the keycloak module).

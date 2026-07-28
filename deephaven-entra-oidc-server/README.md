@@ -14,7 +14,7 @@ The Keycloak implementation lives in the sibling module
 | --- | --- |
 | gRPC / Barrage / Flight (Java clients) | ✅ implemented (this module + MSAL flows in the clients) |
 | User MFA (Microsoft Authenticator) | ✅ device-code and interactive browser flows in the clients |
-| Web IDE (browser) login | ❌ not yet — needs an MSAL.js login plugin; see [Phase 1 of the roadmap](../docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-1--web-ide-login-via-msaljs) |
+| Web IDE (browser) login | ✅ implemented — [`js-plugin-auth-entra`](../js-plugin-auth-entra) (MSAL.js auth-code+PKCE, enterprise SSO + Authenticator MFA), baked into this image; smoke-verified against a mock issuer, live tenant test pending |
 | Per-user identity / roles on the server | ❌ every valid token is admitted as SuperUser today ([Phase 2](../docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-2--server-side-identity--roles)) |
 
 ## Contents

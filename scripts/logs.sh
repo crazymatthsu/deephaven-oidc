@@ -26,6 +26,9 @@ case "$MODE" in
   entra)    COMPOSE_FILE="$REPO_ROOT/deephaven-entra-oidc-server/compose.yaml" ;;
 esac
 
+# Placeholders keep the entra compose file's required-var interpolation happy for read-only ops.
+export ENTRA_TENANT_ID="${ENTRA_TENANT_ID:-unset}" ENTRA_AUDIENCE="${ENTRA_AUDIENCE:-unset}"
+
 if [[ -n "$SERVICE" ]]; then
   podman compose -f "$COMPOSE_FILE" logs -f "$SERVICE"
 else

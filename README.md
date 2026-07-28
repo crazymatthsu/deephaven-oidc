@@ -14,8 +14,8 @@ Two **switchable** identity implementations live side by side:
 | Start | `scripts/start.sh` (or `scripts/start.sh keycloak`) | `scripts/start.sh entra` (needs `ENTRA_TENANT_ID`, `ENTRA_AUDIENCE`) |
 | Java clients | default, or `AUTH_PROVIDER=keycloak` | `AUTH_PROVIDER=entra` (+ `ENTRA_*` vars) |
 | User MFA | Whatever the realm enforces (demo: none) | ✅ Microsoft Authenticator via device-code / interactive MSAL flows |
-| Web IDE login | ✅ works (Keycloak JS plugin) | ❌ not yet — needs an MSAL.js plugin ([roadmap Phase 1](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-1--web-ide-login-via-msaljs)) |
-| Status | Verified end-to-end locally | Build-verified; live test pending an Entra tenant ([setup guide](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide)) |
+| Web IDE login | ✅ works (Keycloak JS plugin) | ✅ built ([js-plugin-auth-entra](js-plugin-auth-entra): MSAL.js auth-code+PKCE — enterprise SSO + Authenticator MFA; needs `ENTRA_SPA_CLIENT_ID`/`ENTRA_WEB_SCOPE`) |
+| Status | Verified end-to-end locally | Build- and mock-issuer smoke-verified (plugin loads and redirects to Entra); live test pending a tenant ([setup guide](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide)) |
 
 Remaining Entra work is planned in detail in
 [`docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md`](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md).
@@ -27,7 +27,8 @@ The Keycloak path is based on the official guide:
 | Module | Contents |
 | --- | --- |
 | `deephaven-keycloak-oidc-server` | The Keycloak stack: custom Deephaven image (OIDC provider jar + Keycloak web-login plugin + orders app), Keycloak realm import, `compose.yaml` |
-| `deephaven-entra-oidc-server` | The direct Entra stack: `EntraOidcAuthenticationHandler` + fat jar, Deephaven image, `compose.yaml` (no IdP container) |
+| `deephaven-entra-oidc-server` | The direct Entra stack: `EntraOidcAuthenticationHandler` + fat jar, Deephaven image (bakes in the web login plugin), `compose.yaml` (no IdP container) |
+| `js-plugin-auth-entra` | Web IDE login plugin for Entra (MSAL.js, auth-code + PKCE → enterprise SSO + Authenticator MFA); built inside the Entra Docker image |
 | `deephaven-keycloak-oidc-client` | `OrderSimulator` (publishes mock orders via Flight DoPut into the keyed input table) and `OrderSubscriber` (live Barrage subscription to the caller's entitled view) — both work against either stack via `AUTH_PROVIDER` |
 | `deephaven-keycloak-oidc-common` | Shared config, Keycloak token client, **MSAL4J Entra token client** (client-credentials, device-code + Authenticator MFA, interactive, legacy ROPC), OIDC-authenticated `BarrageSession` factory |
 | `deploy/eks` | Kubernetes manifests (ALB/gRPC ingress, TLS) + security design doc for on-prem → EKS access |

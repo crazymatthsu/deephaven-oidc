@@ -14,5 +14,8 @@ case "$MODE" in
   *) echo "Usage: scripts/stop.sh [keycloak|entra]" >&2; exit 2 ;;
 esac
 
-podman compose -f "$COMPOSE_FILE" down
+# The entra compose file marks ENTRA_* as required for `up`; provide placeholders so plain
+# `down` still interpolates when the shell doesn't have them exported.
+ENTRA_TENANT_ID="${ENTRA_TENANT_ID:-unset}" ENTRA_AUDIENCE="${ENTRA_AUDIENCE:-unset}" \
+  podman compose -f "$COMPOSE_FILE" down
 echo "Stack stopped ($MODE)."

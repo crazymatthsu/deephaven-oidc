@@ -1,0 +1,32 @@
+{
+  "name": "@deephaven-oidc/js-plugin-auth-entra",
+  "version": "0.1.0",
+  "description": "Deephaven web IDE authentication plugin for Microsoft Entra ID (MSAL.js, auth-code + PKCE)",
+  "keywords": [
+    "Deephaven",
+    "plugin",
+    "deephaven-js-plugin",
+    "auth",
+    "authentication",
+    "entra",
+    "azure-ad",
+    "msal"
+  ],
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^3.28.1"
+  },
+  "devDependencies": {
+    "vite": "~5.4.11"
+  },
+  "peerDependencies": {
+    "react": "^17.0.2"
+  }
+}
