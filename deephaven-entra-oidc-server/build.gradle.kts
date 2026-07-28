@@ -19,10 +19,23 @@ plugins {
 dependencies {
     // Deephaven authentication SPI (AuthenticationRequestHandler, AuthContext) — provided by the server.
     compileOnly(libs.deephaven.authentication)
+    // LogOutput/LogOutputAppendable, needed to subclass AuthContext — also provided by the server.
+    compileOnly(libs.deephaven.base)
 
     // Spring Security — concise JWT validation against Entra ID JWKS.
     implementation(libs.spring.security.oauth2.resource.server)
     implementation(libs.spring.security.oauth2.jose)
+
+    // Tests: mint RS256 tokens with Nimbus (transitive of oauth2-jose) against an embedded mock
+    // issuer; the auth SPI is needed at test runtime since it's compileOnly above.
+    testImplementation(libs.deephaven.authentication)
+    testImplementation(libs.deephaven.base)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.jar {

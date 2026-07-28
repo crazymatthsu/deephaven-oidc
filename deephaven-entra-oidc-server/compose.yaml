@@ -34,6 +34,7 @@ services:
         -DAuthHandlers=io.deephaven.oidc.entra.EntraOidcAuthenticationHandler
         -Dauthentication.oidc.entra.issuer-uri=${ENTRA_ISSUER_URI:-https://login.microsoftonline.com/${ENTRA_TENANT_ID:?set ENTRA_TENANT_ID (directory/tenant id)}/v2.0}
         -Dauthentication.oidc.entra.audience=${ENTRA_AUDIENCE:?set ENTRA_AUDIENCE (e.g. api://<app-id-uri>)}
+        -Dauthentication.oidc.entra.superuser-roles=${ENTRA_SUPERUSER_ROLES:-dh-admin}
         -Dauthentication.oidc.entra.tenant-id=${ENTRA_TENANT_ID}
         -Dauthentication.oidc.entra.spa-client-id=${ENTRA_SPA_CLIENT_ID:-}
         -Dauthentication.oidc.entra.scope=${ENTRA_WEB_SCOPE:-}
