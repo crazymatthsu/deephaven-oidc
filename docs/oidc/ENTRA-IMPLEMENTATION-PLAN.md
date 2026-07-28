@@ -19,14 +19,21 @@ Done (this repo):
   [`js-plugin-auth-entra`](../../js-plugin-auth-entra) (details below kept as as-built reference).
   Smoke-verified against a mock issuer: plugin loads in the IDE, `isAvailable` matches the Entra
   handler, and MSAL redirects to `login.microsoftonline.com` with the correct client_id/scope/PKCE
-  parameters. **Live tenant validation still pending** (needs Phase 4).
+  parameters. **Live tenant validation still pending** (needs Phase 4). As-built details:
+  [entra-web-login-phase1-as-built.md](entra-web-login-phase1-as-built.md).
+- ✅ **Phase 2: Server-side identity & roles** — implemented 2026-07-28. `EntraUserAuthContext`
+  carries `oid` + username + roles; only tokens holding a configured superuser role
+  (`authentication.oidc.entra.superuser-roles` / `ENTRA_SUPERUSER_ROLES`, default `dh-admin`)
+  become `SuperUser`; logins are logged with identity and roles. Covered by 10 unit tests running
+  the handler against an embedded mock issuer (generated RSA JWKS + Nimbus-minted tokens) — a
+  head start on Phase 5.
 
 Remaining, in recommended order:
 
 | Phase | What | Effort | Unblocks |
 |---|---|---|---|
 | 1 | Web IDE login via MSAL.js | ✅ done (live validation pending) | Browser users on the Entra stack |
-| 2 | Server-side identity & roles | Medium | Real per-user auditing; groundwork for authz |
+| 2 | Server-side identity & roles | ✅ done | Real per-user auditing; groundwork for authz |
 | 3 | Token lifecycle in long-running clients | Low | Daemons running past token expiry |
 | 4 | Entra tenant setup guide + live E2E test | Low (docs) + portal work | All live testing |
 | 5 | Tests & CI | Medium | Regression safety |
@@ -151,7 +158,18 @@ from [auth-keycloak-js-plugin-fix.md](../auth-keycloak-js-plugin-fix.md) — it 
 
 ---
 
-## Phase 2 — Server-side identity & roles
+## Phase 2 — Server-side identity & roles  ✅ IMPLEMENTED (as-built notes)
+
+> Implemented 2026-07-28. As-built: `EntraUserAuthContext` (extends `AuthContext`, requires
+> `io.deephaven:deephaven-Base` at compile time for `LogOutput`) with `userId` (`oid`, falling
+> back to `sub`), `username` (`preferred_username` → `upn` → `azp` → `appid` → oid — the app id
+> path covers client-credentials service principals), and `roles` (`roles` claim, else `groups`).
+> `authentication.oidc.entra.superuser-roles` (comma-separated, default `dh-admin`; compose env
+> `ENTRA_SUPERUSER_ROLES`) gates `SuperUser`. Every accepted login and every rejection is logged
+> (JUL — always present on the server classpath; no slf4j binding in the fat jar). Verified by
+> `EntraOidcAuthenticationHandlerTest`: 10 cases against an embedded `HttpServer` mock issuer
+> incl. role/group mapping, superuser gate, azp audience fallback, expiry/signature/audience
+> rejections.
 
 **Goal:** stop admitting every valid token as `AuthContext.SuperUser`; carry the real user identity
 and roles into Deephaven.
@@ -242,6 +260,10 @@ AUTH_PROVIDER=entra ENTRA_...=... ./gradlew :deephaven-keycloak-oidc-client:runS
 ---
 
 ## Phase 5 — Tests & CI
+
+> Partially done (2026-07-28): the handler unit tests below exist
+> (`EntraOidcAuthenticationHandlerTest`, 10 cases, embedded mock issuer). Remaining: client-side
+> `AppConfig`/`rolesFromToken` tests and the GitHub Actions workflow.
 
 - **Handler unit tests** (new `deephaven-entra-oidc-server/src/test/java`):
   - Generate an RSA key with Nimbus (`new RSAKeyGenerator(2048).keyID("t").generate()`), serve

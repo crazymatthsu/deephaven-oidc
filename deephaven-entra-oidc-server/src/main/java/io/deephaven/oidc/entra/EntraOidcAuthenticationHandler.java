@@ -15,10 +15,15 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Deephaven {@link AuthenticationRequestHandler} that validates Microsoft Entra ID (Azure AD)
@@ -40,6 +45,10 @@ import java.util.Optional;
  * <ul>
  *   <li>{@code authentication.oidc.entra.audience} — expected {@code aud} / app ID URI
  *       (e.g. {@code api://your-app-id}). When set, tokens without this audience are rejected.</li>
+ *   <li>{@code authentication.oidc.entra.superuser-roles} — comma-separated role claims that map
+ *       to {@link AuthContext.SuperUser} (default {@code dh-admin}). All other valid tokens are
+ *       admitted as {@link EntraUserAuthContext} carrying the principal's id, username, and
+ *       roles.</li>
  * </ul>
  *
  * <p>Values may be supplied as Java system properties ({@code -D...}) or environment variables
@@ -59,13 +68,25 @@ public final class EntraOidcAuthenticationHandler implements AuthenticationReque
 
     private static final String PROP_ISSUER = "authentication.oidc.entra.issuer-uri";
     private static final String PROP_AUDIENCE = "authentication.oidc.entra.audience";
+    private static final String PROP_SUPERUSER_ROLES = "authentication.oidc.entra.superuser-roles";
+    private static final String DEFAULT_SUPERUSER_ROLES = "dh-admin";
+
+    private static final Logger log = Logger.getLogger(EntraOidcAuthenticationHandler.class.getName());
 
     private JwtDecoder jwtDecoder;
+    private Set<String> superuserRoles = Set.of();
 
     @Override
     public void initialize(String targetUrl) {
         String issuerUri = required(PROP_ISSUER);
         String audience = optional(PROP_AUDIENCE);
+
+        String superuserRolesRaw = optional(PROP_SUPERUSER_ROLES);
+        superuserRoles = Arrays.stream(
+                (superuserRolesRaw == null ? DEFAULT_SUPERUSER_ROLES : superuserRolesRaw).split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
 
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
 
@@ -105,17 +126,59 @@ public final class EntraOidcAuthenticationHandler implements AuthenticationReque
         String raw = stripBearerPrefix(token.trim());
         try {
             Jwt jwt = jwtDecoder.decode(raw);
-
-            // Roles / groups are available for future entitlement mapping:
-            //   jwt.getClaimAsStringList("roles")
-            //   jwt.getClaimAsStringList("groups")
-            //   jwt.getClaimAsString("oid")
-            // For the initial version any cryptographically valid Entra token is admitted.
-            return Optional.of(new AuthContext.SuperUser());
+            return Optional.of(toAuthContext(jwt));
         } catch (JwtException e) {
             // Invalid signature, expired, wrong issuer/audience, malformed token, etc.
+            log.warning(() -> "Entra login rejected: " + e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Maps a validated token to an {@link AuthContext}: tokens holding one of the configured
+     * superuser roles become {@link AuthContext.SuperUser}; everything else becomes a
+     * {@link EntraUserAuthContext} carrying identity + roles.
+     */
+    private AuthContext toAuthContext(Jwt jwt) {
+        // Stable object id of the user or service principal; sub is always present as fallback.
+        String oid = firstNonBlank(jwt.getClaimAsString("oid"), jwt.getSubject());
+        // Human users carry preferred_username/upn; client-credentials tokens identify the app.
+        String username = firstNonBlank(
+                jwt.getClaimAsString("preferred_username"),
+                jwt.getClaimAsString("upn"),
+                jwt.getClaimAsString("azp"),
+                jwt.getClaimAsString("appid"),
+                oid);
+        Set<String> roles = extractRoles(jwt);
+
+        boolean superuser = roles.stream().anyMatch(superuserRoles::contains);
+        log.info("Entra login: user=" + username + " (oid=" + oid + ") roles=" + roles
+                + (superuser ? " -> SuperUser" : " -> user context"));
+        return superuser
+                ? new AuthContext.SuperUser()
+                : new EntraUserAuthContext(oid, username, roles);
+    }
+
+    /** {@code roles} (Entra app roles — recommended), else {@code groups}, else empty. */
+    private static Set<String> extractRoles(Jwt jwt) {
+        List<String> roles = jwt.getClaimAsStringList("roles");
+        if (roles != null && !roles.isEmpty()) {
+            return new LinkedHashSet<>(roles);
+        }
+        List<String> groups = jwt.getClaimAsStringList("groups");
+        if (groups != null && !groups.isEmpty()) {
+            return new LinkedHashSet<>(groups);
+        }
+        return Set.of();
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "unknown";
     }
 
     private static String stripBearerPrefix(String token) {

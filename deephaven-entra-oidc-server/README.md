@@ -15,7 +15,7 @@ The Keycloak implementation lives in the sibling module
 | gRPC / Barrage / Flight (Java clients) | ✅ implemented (this module + MSAL flows in the clients) |
 | User MFA (Microsoft Authenticator) | ✅ device-code and interactive browser flows in the clients |
 | Web IDE (browser) login | ✅ implemented — [`js-plugin-auth-entra`](../js-plugin-auth-entra) (MSAL.js auth-code+PKCE, enterprise SSO + Authenticator MFA), baked into this image; smoke-verified against a mock issuer, live tenant test pending |
-| Per-user identity / roles on the server | ❌ every valid token is admitted as SuperUser today ([Phase 2](../docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-2--server-side-identity--roles)) |
+| Per-user identity / roles on the server | ✅ `EntraUserAuthContext` carries `oid`/username/roles; only `ENTRA_SUPERUSER_ROLES` (default `dh-admin`) become SuperUser; unit-tested against a mock issuer |
 
 ## Contents
 
@@ -60,9 +60,18 @@ START_OPTS="
   -DAuthHandlers=io.deephaven.oidc.entra.EntraOidcAuthenticationHandler
   -Dauthentication.oidc.entra.issuer-uri=https://login.microsoftonline.com/<tenant-id>/v2.0
   -Dauthentication.oidc.entra.audience=api://<your-app-id-uri>
+  -Dauthentication.oidc.entra.superuser-roles=dh-admin        # optional; default dh-admin
   -Dauthentication.client.configuration.list=AuthHandlers
 "
 ```
+
+Identity mapping: tokens holding one of the `superuser-roles` claims become Deephaven
+`SuperUser`; every other valid token is admitted as `EntraUserAuthContext` carrying the
+principal's `oid`, username (`preferred_username`/`upn`, or the app id for service principals),
+and `roles`/`groups` claims. Each login is logged as `Entra login: user=... roles=[...]`.
+Note: Community's default authorization permits all operations regardless of context — the
+context is for auditing and future custom `AuthorizationProvider` wiring; script-level RLS
+remains the enforcement point.
 
 Environment variable equivalents: `AUTHENTICATION_OIDC_ENTRA_ISSUER_URI`,
 `AUTHENTICATION_OIDC_ENTRA_AUDIENCE`.
