@@ -18,14 +18,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Owns the gRPC channel plumbing shared by the demo clients and creates OIDC-authenticated {@link BarrageSession}s.
+ * Owns the gRPC channel plumbing shared by the demo clients and creates OIDC-authenticated
+ * {@link BarrageSession}s.
  *
- * <p>The authentication handshake presents the Keycloak access token to the server's
- * {@code io.deephaven.authentication.oidc.OidcAuthenticationHandler}, which validates it against Keycloak before
- * admitting the session.
+ * <p>The authentication handshake presents an access token to the server handler selected by
+ * {@link AppConfig#deephavenAuthType()} (Keycloak {@code OidcAuthenticationHandler} or Entra
+ * {@code EntraOidcAuthenticationHandler}).
  */
 public final class DeephavenSessions implements AutoCloseable {
 
+    private final AppConfig config;
     private final BufferAllocator allocator;
     private final ScheduledExecutorService scheduler;
     private final Factory factory;
@@ -36,6 +38,7 @@ public final class DeephavenSessions implements AutoCloseable {
     }
 
     private DeephavenSessions(AppConfig config) {
+        this.config = config;
         allocator = new RootAllocator();
         scheduler = Executors.newScheduledThreadPool(4);
         ClientConfig clientConfig = ClientConfig.builder()
@@ -60,7 +63,7 @@ public final class DeephavenSessions implements AutoCloseable {
     /** Opens a new session authenticated as the bearer of {@code accessToken}. */
     public BarrageSession newSession(String accessToken) {
         SessionConfig sessionConfig = SessionConfig.builder()
-                .authenticationTypeAndValue(AppConfig.OIDC_AUTH_TYPE + " " + accessToken)
+                .authenticationTypeAndValue(config.deephavenAuthType() + " " + accessToken)
                 .build();
         return factory.newBarrageSession(sessionConfig);
     }
