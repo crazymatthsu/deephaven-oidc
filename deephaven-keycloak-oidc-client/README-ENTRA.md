@@ -30,6 +30,17 @@ App-registration prerequisites: `devicecode` needs **"Allow public client flows"
 `interactive` needs `http://localhost` as a *Mobile and desktop applications* redirect URI.
 Full tenant setup: [ENTRA-IMPLEMENTATION-PLAN.md Phase 4](../docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide).
 
+## Where to keep the values
+
+One gitignored env file per client identity (templates committed alongside):
+[`entra-pubsub.env.example`](entra-pubsub.env.example) (daemon: client ID + secret of the
+confidential app) and [`entra-subscriber.env.example`](entra-subscriber.env.example) (humans:
+public app client ID, no secret). Copy each to the same name without `.example`, fill in, and
+load with `set -a; source <file>; set +a` before the gradle run. `ENTRA_CLIENT_ID` deliberately
+differs between the two — don't share one shell export across both clients. The server's
+`deephaven-entra-oidc-server/.env` never needs client secrets. In production, inject the secret
+from a secret store instead of a file.
+
 ## Run simulator (client credentials — no MFA, service principal)
 
 ```bash

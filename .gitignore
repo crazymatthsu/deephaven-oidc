@@ -5,6 +5,8 @@ out/
 *.iml
 .DS_Store
 .env
+# local client credentials (templates: *.env.example)
+entra-*.env
 node_modules/
 dist/
 *.swp
