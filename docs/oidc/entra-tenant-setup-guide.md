@@ -20,10 +20,12 @@ deephaven-users   --device code / SPA PKCE-->  Entra  --token (aud=deephaven-api
 deephaven-pub-sub --client credentials----->  Entra  --token (aud=deephaven-api, roles=[writer])------->  Deephaven
 ```
 
-> ⚠️ **Role names are contract, not convention.** The code expects exactly:
+> ⚠️ **Role names are contract, not convention.** The demo expects exactly:
 > `trader-us`, `trader-emea`, `dh-admin` (humans) and `writer` (daemon). They are wired into
 > `orders_app.py` (`EntraEntitledRoles` attributes), `ENTRA_SUPERUSER_ROLES` (default `dh-admin`),
 > and the subscriber's view selection. Changing a name means changing it everywhere.
+> For the enterprise model (AD groups `DH_ADM`/`DH_READ`/`DH_WRITE` → roles
+> `admin`/`reader`/`writer`), see [section 6](#6-enterprise-pattern-windows-sso--ad-groups-dh_adm--dh_read--dh_write).
 
 All steps below: [Entra admin center](https://entra.microsoft.com) → **Identity → Applications →
 App registrations** (or Azure Portal → Microsoft Entra ID).
@@ -226,7 +228,91 @@ export AUTH_PROVIDER=entra ENTRA_TENANT_ID=<tenant id> \
 
 ---
 
-## 6. Common mistakes
+## 6. Enterprise pattern: Windows SSO + AD groups (DH_ADM / DH_READ / DH_WRITE)
+
+The sections above use per-user role assignments and demo region roles — right for a free test
+tenant. In the enterprise, users already sign into Windows with corporate accounts, and access is
+requested through **AD group membership**. This maps onto the same machinery with zero code
+changes — roles are data everywhere in this project.
+
+### 7.1 Role model
+
+| AD group | App role **value** on `deephaven-api` | Deephaven meaning |
+|---|---|---|
+| `DH_ADM` | `admin` | Superuser: all tables, console, entitlement edits (`ENTRA_SUPERUSER_ROLES=admin`) |
+| `DH_READ` | `reader` | May fetch tables whose `EntraEntitledRoles` attribute includes `reader` |
+| `DH_WRITE` | `writer` | May publish into input tables entitled to `writer` (same value the pub-sub daemon uses) |
+
+Create these as app roles on `deephaven-api` exactly as in step 1.3 — *Allowed member types* =
+**Users/Groups** for `admin`/`reader`, and **Both** for `writer` (humans in `DH_WRITE` *and* the
+`deephaven-pub-sub` service principal share it). The demo's region roles can coexist during a
+transition or be deleted once unused.
+
+### 7.2 Get the AD groups into Entra
+
+- Hybrid AD: sync `DH_ADM`/`DH_READ`/`DH_WRITE` via **Entra Connect / Cloud Sync** — they must be
+  **security groups** (distribution lists don't carry into tokens/assignments). They appear in
+  Entra as synced security groups.
+- Cloud-only tenants: create them directly as security groups.
+
+### 7.3 Assign the groups to the app roles
+
+**Enterprise applications → `deephaven-api` → Users and groups → + Add user/group**, three times:
+`DH_ADM` → *admin*, `DH_READ` → *reader*, `DH_WRITE` → *writer*.
+
+Two important caveats:
+
+- **Licensing:** assigning *groups* (rather than individual users) to app roles requires
+  **Entra ID P1** — standard in enterprises, absent on a bare free tenant (where you assign users
+  directly, as in 1.5).
+- **Nesting is NOT expanded:** app-role assignment applies to **direct members only**. A user in
+  `SubGroup ⊂ DH_READ` gets no `reader` claim. Keep the `DH_*` groups flat (direct user members),
+  which also matches the "users request to be added" workflow.
+
+No group claims / optional claims configuration is needed (or wanted): membership surfaces as the
+app-role **value** (`reader`, not a group GUID) in the token's `roles` claim, exactly like a
+direct assignment — so the server, the entitlement attributes, and the clients see identical
+shapes in demo and enterprise setups.
+
+### 7.4 Project configuration for this model
+
+Server `.env`:
+
+```bash
+ENTRA_SUPERUSER_ROLES=admin
+```
+
+Table policy (`orders_app.py` — attribute values are free-form strings):
+
+```python
+_app["orders"]       = _entitled(orders, "writer")          # raw feed: writers only
+_app["entitlements"] = _entitled(entitlements, "admin")
+_app["orders_us"]    = _entitled(orders_us, "reader,admin") # readers see the curated views
+_app["orders_emea"]  = _entitled(orders_emea, "reader,admin")
+_app["orders_all"]   = _entitled(orders_all, "reader,admin")
+```
+
+(Finer-grained read tiers later — e.g. regional read groups — are just more AD groups + app roles
++ attribute entries; the enforcement code never changes.)
+
+One demo-specific note: `OrderSubscriber` picks its Barrage view from the region roles
+(`VIEW_BY_ROLE`); under the flat `reader` model, update that map (e.g. `reader` → `orders_all`)
+or treat view choice as application logic — the *server-side* enforcement above is independent of
+it.
+
+### 7.5 What users experience
+
+1. User requests membership of `DH_READ` via the existing AD/IGA process (or an Entra ID
+   Governance access package).
+2. Membership syncs to Entra (Entra Connect cycle, typically ≤30 min; immediate for cloud groups).
+3. Next sign-in: from a domain-/Entra-joined Windows machine the browser signs into the Deephaven
+   IDE **silently** (Primary Refresh Token SSO — no password), Conditional Access injects the
+   Authenticator MFA prompt per policy, and the issued token carries `roles=["reader"]`.
+4. Role changes take effect on the **next token issuance** — sign out/in, or at silent renewal
+   (access tokens live ~60–90 min). Removal from a group likewise takes until the current token
+   expires; set shorter token lifetimes if revocation latency matters.
+
+## 7. Common mistakes
 
 | Symptom | Cause |
 |---|---|
