@@ -7,3 +7,4 @@ out/
 .env
 node_modules/
 dist/
+*.swp
