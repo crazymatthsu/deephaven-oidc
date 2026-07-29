@@ -46,7 +46,11 @@ App registrations** (or Azure Portal → Microsoft Entra ID).
 ### 1.2 Application ID URI + scope
 
 1. **Expose an API** → next to *Application ID URI* click **Add**, accept `api://<API_CLIENT_ID>`
-   → **Save**. This value is `ENTRA_AUDIENCE`.
+   → **Save**.
+   > **Live-tested note:** with `requestedAccessTokenVersion: 2` (step 1.4), issued tokens carry
+   > the **bare client ID** in `aud`, not the `api://…` URI — so set
+   > `ENTRA_AUDIENCE=<API_CLIENT_ID>` (plain GUID). The server log tells you immediately when
+   > this is wrong: `Entra login rejected: ... Required audience '...' not present in token`.
 2. **+ Add a scope**:
    - Scope name: `access_as_user`
    - Who can consent: *Admins and users*
@@ -168,10 +172,10 @@ Server (`deephaven-entra-oidc-server/.env`, from `.env.example`; gitignored):
 
 ```bash
 ENTRA_TENANT_ID=<tenant id>
-ENTRA_AUDIENCE=api://<API_CLIENT_ID>
+ENTRA_AUDIENCE=<API_CLIENT_ID>                  # bare GUID — see the note in 1.2
 ENTRA_SUPERUSER_ROLES=dh-admin
 ENTRA_SPA_CLIENT_ID=<deephaven-users client id>
-ENTRA_WEB_SCOPE=api://<API_CLIENT_ID>/access_as_user
+ENTRA_WEB_SCOPE=api://<API_CLIENT_ID>/access_as_user   # scope keeps the api:// form
 ```
 
 Subscriber (human, device code + Authenticator — no password):
@@ -324,6 +328,8 @@ it.
 | Handler rejects valid-looking tokens | `aud` ≠ `ENTRA_AUDIENCE` (see 5.2) or v1 issuer (1.4) |
 | `roles` claim empty for a user | User not assigned to an app role on `deephaven-api`'s **Enterprise application** (1.5) |
 | SPA redirect error in browser | Redirect URI ≠ `http://localhost:10000/ide/` exactly (2.2) |
+| `AADSTS9002326` (cross-origin token redemption) after successful sign-in | The IDE redirect URI is registered under the **wrong platform type** (Web / Mobile & desktop) — it must be under **Single-page application** (2.2). Hit live: same URI, wrong section |
+| `interaction_in_progress` MSAL error after fixing registration | Stale MSAL state from the failed attempt — clear the site's local/session storage for `localhost:10000` and reload |
 | Daemon has no `roles` | Application permission added but consent missed, or role's member type doesn't include *Applications* (1.3/3.3) |
 
 ## Related
