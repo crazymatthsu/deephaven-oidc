@@ -330,6 +330,8 @@ it.
 | SPA redirect error in browser | Redirect URI ≠ `http://localhost:10000/ide/` exactly (2.2) |
 | `AADSTS9002326` (cross-origin token redemption) after successful sign-in | The IDE redirect URI is registered under the **wrong platform type** (Web / Mobile & desktop) — it must be under **Single-page application** (2.2). Hit live: same URI, wrong section |
 | `interaction_in_progress` MSAL error after fixing registration | Stale MSAL state from the failed attempt — clear the site's local/session storage for `localhost:10000` and reload |
+| `AADSTS50011` when opening an **embed page** (`/iframe/widget/...`) cold | The login plugin uses the current page as redirect URI. Register `http://localhost:10000/iframe/widget/` as an additional SPA redirect URI, or sign in once at `/ide/` first (embeds then reuse the cached token) |
+| Role change seems ignored for a minute or two | Two causes: the browser's cached access token (~60–90 min; clear site storage to force re-issue) and Entra's own assignment-propagation lag (observed live: one stale-role token issued seconds after a change) |
 | Daemon has no `roles` | Application permission added but consent missed, or role's member type doesn't include *Applications* (1.3/3.3) |
 
 ## Related
