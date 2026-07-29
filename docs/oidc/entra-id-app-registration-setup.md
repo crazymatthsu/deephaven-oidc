@@ -1,5 +1,12 @@
 # Microsoft Entra ID App Registration Setup
 
+> **⚠️ Superseded (2026-07-28):** this early two-app note predates the user sign-in flows, the web
+> IDE plugin, and the role-based entitlement enforcement. Follow
+> [**entra-tenant-setup-guide.md**](entra-tenant-setup-guide.md) instead — it covers all three
+> registrations (`deephaven-api`, `deephaven-users`, `deephaven-pub-sub`) with the exact app-role
+> names the code expects (`trader-us`, `trader-emea`, `dh-admin`, `writer` — not
+> `Deephaven.Access`).
+
 **Date:** 2026-07-27  
 **Purpose:** Configure Entra ID so a confidential client (e.g. OrderSimulator) can obtain access tokens that Deephaven validates with `EntraOidcAuthenticationHandler`.
 
