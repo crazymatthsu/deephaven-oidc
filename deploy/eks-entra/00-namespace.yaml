@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: deephaven-entra
+  labels:
+    app.kubernetes.io/part-of: deephaven-oidc

@@ -52,7 +52,7 @@ Remaining, in recommended order:
 | 3 | Token lifecycle in long-running clients | ✅ **done** (live reconnect verified) | Daemons running past token expiry |
 | 4 | Entra tenant setup guide + live E2E test | ✅ **done** — see [live validation results](entra-live-validation-results.md) | All live testing |
 | 5 | Tests & CI | ✅ **done** — 32 tests + GitHub Actions (gradle + web-plugin jobs), first run green | Regression safety |
-| 6 | EKS deployment variant | Medium | Production-ish deploy without Keycloak |
+| 6 | EKS deployment variant | ✅ **done** — [`deploy/eks-entra/`](../../deploy/eks-entra/README.md) (manifests structurally validated; first cluster rollout = staging exercise) | Production-ish deploy without Keycloak |
 | 7 | End-state decision: retire Keycloak vs broker | Decision | Simplified architecture |
 
 Phase 4 is a prerequisite for *live-testing* every other phase — do it as soon as a tenant is
@@ -313,7 +313,15 @@ AUTH_PROVIDER=entra ENTRA_...=... ./gradlew :deephaven-keycloak-oidc-client:runS
 
 ---
 
-## Phase 6 — EKS deployment variant (direct Entra)
+## Phase 6 — EKS deployment variant (direct Entra)  ✅ IMPLEMENTED (as-built notes)
+
+> Implemented 2026-07-30: [`deploy/eks-entra/`](../../deploy/eks-entra/README.md) — no in-cluster
+> IdP, zero server-side secrets (ConfigMap only; audience documented as the bare GUID), single
+> ALB ingress, START_OPTS assembled via Kubernetes `$(VAR)` dependent-env expansion, console left
+> superuser-only (role enforcement is in the server) instead of hard-disabled, optional
+> in-cluster daemon Secret example (with a pointer to Secrets Manager/External Secrets), and SPA
+> redirect-URI instructions for the public HTTPS hostname. Structurally validated; not yet
+> applied to a live cluster.
 
 Mirror `deploy/eks/` for the Entra stack:
 

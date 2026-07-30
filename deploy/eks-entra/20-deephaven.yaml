@@ -1,0 +1,89 @@
+# Deephaven server with DIRECT Entra ID authentication + role-based entitlement enforcement.
+# No identity container runs in the cluster — login.microsoftonline.com is the IdP, so the only
+# extra requirement vs the Keycloak variant is HTTPS egress to it (JWKS/discovery at startup and
+# on key rotation).
+#
+# Build and push the image from this repo first (repo-root build context — the Dockerfile needs
+# the Gradle-built fat jar and the shared app.d):
+#   ./gradlew :deephaven-entra-oidc-server:fatJar
+#   podman build -f deephaven-entra-oidc-server/docker/deephaven/Dockerfile \
+#       -t <acct>.dkr.ecr.<region>.amazonaws.com/deephaven-entra-oidc:0.39.4 .
+#   podman push <acct>.dkr.ecr.<region>.amazonaws.com/deephaven-entra-oidc:0.39.4
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deephaven
+  namespace: deephaven-entra
+  labels:
+    app: deephaven
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # single stateful engine; no rolling overlap
+  selector:
+    matchLabels:
+      app: deephaven
+  template:
+    metadata:
+      labels:
+        app: deephaven
+    spec:
+      containers:
+        - name: deephaven
+          image: REPLACE-with-ecr-repo/deephaven-entra-oidc:0.39.4
+          env:
+            - name: EXTRA_CLASSPATH
+              value: "/apps/libs/*"
+            # Individual entries (not envFrom) because START_OPTS below expands them with $(VAR)
+            # — Kubernetes dependent-env expansion only sees vars declared earlier in this list.
+            - name: ENTRA_TENANT_ID
+              valueFrom: { configMapKeyRef: { name: deephaven-entra, key: ENTRA_TENANT_ID } }
+            - name: ENTRA_AUDIENCE
+              valueFrom: { configMapKeyRef: { name: deephaven-entra, key: ENTRA_AUDIENCE } }
+            - name: ENTRA_SUPERUSER_ROLES
+              valueFrom: { configMapKeyRef: { name: deephaven-entra, key: ENTRA_SUPERUSER_ROLES } }
+            - name: ENTRA_SPA_CLIENT_ID
+              valueFrom: { configMapKeyRef: { name: deephaven-entra, key: ENTRA_SPA_CLIENT_ID } }
+            - name: ENTRA_WEB_SCOPE
+              valueFrom: { configMapKeyRef: { name: deephaven-entra, key: ENTRA_WEB_SCOPE } }
+            # Unlike the Keycloak variant, the console stays ENABLED: the image launches the
+            # custom EntraServerMain whose authorization already restricts consoles to superusers
+            # and gates every table fetch/write by the caller's Entra roles. Add
+            # -Ddeephaven.console.disable=true for defense-in-depth if no admin needs a console.
+            - name: START_OPTS
+              value: >-
+                -Xmx4g
+                -DAuthHandlers=io.deephaven.oidc.entra.EntraOidcAuthenticationHandler
+                -Dauthentication.oidc.entra.issuer-uri=https://login.microsoftonline.com/$(ENTRA_TENANT_ID)/v2.0
+                -Dauthentication.oidc.entra.audience=$(ENTRA_AUDIENCE)
+                -Dauthentication.oidc.entra.superuser-roles=$(ENTRA_SUPERUSER_ROLES)
+                -Dauthentication.oidc.entra.tenant-id=$(ENTRA_TENANT_ID)
+                -Dauthentication.oidc.entra.spa-client-id=$(ENTRA_SPA_CLIENT_ID)
+                -Dauthentication.oidc.entra.scope=$(ENTRA_WEB_SCOPE)
+                -Dauthentication.client.configuration.list=AuthHandlers,authentication.oidc.entra.tenant-id,authentication.oidc.entra.spa-client-id,authentication.oidc.entra.scope
+                -Ddeephaven.application.dir=/app.d
+          ports:
+            - name: grpc-http
+              containerPort: 10000
+          readinessProbe:
+            httpGet: { path: /ide/, port: 10000 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "2", memory: 5Gi }
+            limits: { memory: 6Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deephaven
+  namespace: deephaven-entra
+  labels:
+    app: deephaven
+spec:
+  selector:
+    app: deephaven
+  ports:
+    - name: grpc-http
+      port: 10000
+      targetPort: grpc-http

@@ -32,7 +32,8 @@ The Keycloak path is based on the official guide:
 | `js-plugin-auth-entra` | Web IDE login plugin for Entra (MSAL.js, auth-code + PKCE → enterprise SSO + Authenticator MFA); built inside the Entra Docker image |
 | `deephaven-keycloak-oidc-client` | `OrderSimulator` (publishes mock orders via Flight DoPut into the keyed input table) and `OrderSubscriber` (live Barrage subscription to the caller's entitled view) — both work against either stack via `AUTH_PROVIDER` |
 | `deephaven-keycloak-oidc-common` | Shared config, Keycloak token client, **MSAL4J Entra token client** (client-credentials, device-code + Authenticator MFA, interactive, legacy ROPC), OIDC-authenticated `BarrageSession` factory |
-| `deploy/eks` | Kubernetes manifests (ALB/gRPC ingress, TLS) + security design doc for on-prem → EKS access |
+| `deploy/eks` | Kubernetes manifests for the Keycloak stack (ALB/gRPC ingress, TLS) + security design doc for on-prem → EKS access |
+| `deploy/eks-entra` | Kubernetes manifests for the direct-Entra stack — no in-cluster IdP, no server secrets, single ingress ([README](deploy/eks-entra/README.md)) |
 
 ## Demo identities
 
