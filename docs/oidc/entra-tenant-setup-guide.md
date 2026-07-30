@@ -316,6 +316,34 @@ it.
    (access tokens live ~60–90 min). Removal from a group likewise takes until the current token
    expires; set shorter token lifetimes if revocation latency matters.
 
+### 6.6 Multiple daemon teams: one confidential app per workload
+
+When several teams run their own publishers/subscriber daemons, register **one confidential
+client app per team/workload** (`deephaven-pubsub-<team>`) — do **not** share a client ID +
+secret across teams:
+
+| Concern | Shared client ID | Per-team apps |
+|---|---|---|
+| Secret blast radius | One leak compromises every team; rotation must be coordinated | Contained; each team rotates independently |
+| Least privilege | Every daemon carries the union of all roles | Each app granted only the application roles it needs |
+| Attribution | One indistinguishable `azp` in Deephaven's audit log and Entra sign-in logs | Each team's daemon has a distinct identity |
+| Lifecycle | Can't offboard one team without breaking the rest | Disable that team's enterprise app; done |
+
+Registrations are free — manage sprawl with the naming convention and by setting each
+registration's **Owners** to the team (they self-serve secret/cert rotation).
+
+What does **not** multiply: `deephaven-api` stays singular (teams' apps are just additional
+clients of the same resource — the server config never changes), and the **human-facing**
+`deephaven-users` app stays shared, because interactive/device-code identity and roles come from
+the signed-in *user*, not the client app; per-team public clients would add nothing. Onboarding
+team N = register the app → grant its specific application role(s) on `deephaven-api` → admin
+consent.
+
+As publishing teams multiply, split the single `writer` role into **per-domain roles**
+(`writer-orders`, `writer-fills`, …), grant each only to the owning team's app, and tag each
+input table's `EntraEntitledRoles` attribute accordingly — pure data changes; the enforcement
+code stays untouched.
+
 ## 7. Common mistakes
 
 | Symptom | Cause |
