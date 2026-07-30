@@ -51,7 +51,7 @@ Remaining, in recommended order:
 | 2 | Server-side identity & roles | ✅ done + **live-verified** | Real per-user auditing; groundwork for authz |
 | 3 | Token lifecycle in long-running clients | ✅ **done** (live reconnect verified) | Daemons running past token expiry |
 | 4 | Entra tenant setup guide + live E2E test | ✅ **done** — see [live validation results](entra-live-validation-results.md) | All live testing |
-| 5 | Tests & CI | Medium | Regression safety |
+| 5 | Tests & CI | ✅ **done** — 32 tests + GitHub Actions (gradle + web-plugin jobs), first run green | Regression safety |
 | 6 | EKS deployment variant | Medium | Production-ish deploy without Keycloak |
 | 7 | End-state decision: retire Keycloak vs broker | Decision | Simplified architecture |
 
@@ -292,9 +292,11 @@ AUTH_PROVIDER=entra ENTRA_...=... ./gradlew :deephaven-keycloak-oidc-client:runS
 
 ## Phase 5 — Tests & CI
 
-> Partially done (2026-07-28): the handler unit tests below exist
-> (`EntraOidcAuthenticationHandlerTest`, 10 cases, embedded mock issuer). Remaining: client-side
-> `AppConfig`/`rolesFromToken` tests and the GitHub Actions workflow.
+> ✅ Complete (2026-07-30): 32 tests across modules — handler vs embedded mock issuer (10),
+> entitlement policy (4), token refresh (5), `AppConfig` parsing (8), role extraction (5) — plus
+> `.github/workflows/ci.yml` with two jobs: gradle (build, all tests, fat jar, no-slf4j-binding
+> check) and web-plugin (npm build + bundle-shape assertions). First run green. Live Entra tests
+> remain manual by design (tenant + human MFA).
 
 - **Handler unit tests** (new `deephaven-entra-oidc-server/src/test/java`):
   - Generate an RSA key with Nimbus (`new RSAKeyGenerator(2048).keyID("t").generate()`), serve
