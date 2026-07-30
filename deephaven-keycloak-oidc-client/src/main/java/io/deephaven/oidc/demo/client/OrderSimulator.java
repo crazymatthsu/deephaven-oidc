@@ -7,6 +7,7 @@ import io.deephaven.oidc.demo.common.AppConfig.AuthProvider;
 import io.deephaven.oidc.demo.common.DeephavenSessions;
 import io.deephaven.oidc.demo.common.EntraTokenClient;
 import io.deephaven.oidc.demo.common.KeycloakTokenClient;
+import io.deephaven.oidc.demo.common.RefreshingToken;
 import io.deephaven.qst.column.header.ColumnHeader;
 import io.deephaven.qst.table.NewTable;
 
@@ -50,37 +51,51 @@ public final class OrderSimulator {
         AppConfig config = AppConfig.fromEnv();
         System.out.println("Order simulator starting with " + config);
 
-        String accessToken = acquireAccessToken(config);
+        // Refreshed automatically near expiry, so the daemon outlives the ~60-90 min token
+        // lifetime; the token is (re)presented on every (re)connect.
+        RefreshingToken token = tokenFor(config);
 
-        try (DeephavenSessions sessions = DeephavenSessions.connect(config);
-                BarrageSession session = sessions.newSession(accessToken);
-                TableHandle orders = OrdersSchema.fetch(session, config.applicationId(), "orders")) {
-            System.out.println("Connected to Deephaven; publishing orders (Ctrl-C to stop)...");
-            run(sessions, session, orders);
+        long backoffMs = 5_000;
+        while (true) {
+            try (DeephavenSessions sessions = DeephavenSessions.connect(config);
+                    BarrageSession session = sessions.newSession(token);
+                    TableHandle orders = OrdersSchema.fetch(session, config.applicationId(), "orders")) {
+                System.out.println("Connected to Deephaven; publishing orders (Ctrl-C to stop)...");
+                backoffMs = 5_000;
+                run(sessions, session, orders);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception e) {
+                System.err.println(Instant.now() + " connection lost: " + e.getMessage());
+            }
+            System.err.println("Reconnecting in " + backoffMs / 1000 + "s with a current token...");
+            Thread.sleep(backoffMs);
+            backoffMs = Math.min(backoffMs * 2, 60_000);
         }
     }
 
-    private static String acquireAccessToken(AppConfig config) {
+    private static RefreshingToken tokenFor(AppConfig config) {
         if (config.authProvider() == AuthProvider.ENTRA) {
             String presetToken = System.getenv("ENTRA_ACCESS_TOKEN");
             if (presetToken != null && !presetToken.isBlank()) {
-                // Testing/advanced hook: pre-acquired token instead of MSAL client credentials.
-                System.out.println("Using pre-acquired Entra access token (ENTRA_ACCESS_TOKEN)");
-                return presetToken.trim();
+                // Testing/advanced hook: pre-acquired token; cannot be refreshed at expiry.
+                System.out.println("Using pre-acquired Entra access token (ENTRA_ACCESS_TOKEN; no auto-refresh)");
+                return RefreshingToken.fixed(presetToken.trim());
             }
             String secret = System.getenv().getOrDefault("ENTRA_CLIENT_SECRET", "");
-            EntraTokenClient tokens = new EntraTokenClient(config);
-            EntraTokenClient.Token token = tokens.clientCredentialsGrant(secret);
-            System.out.println("Authenticated to Entra ID as confidential client '" + config.entraClientId() + "'");
-            return token.accessToken();
+            System.out.println("Authenticating to Entra ID as confidential client '" + config.entraClientId() + "'");
+            return new EntraTokenClient(config).daemonToken(secret);
         }
 
         String simClientId = System.getenv().getOrDefault("KC_SIM_CLIENT_ID", "order-simulator");
         String simSecret = System.getenv().getOrDefault("KC_SIM_CLIENT_SECRET", "order-simulator-secret");
         KeycloakTokenClient tokens = new KeycloakTokenClient(config);
-        KeycloakTokenClient.Token token = tokens.clientCredentialsGrant(simClientId, simSecret);
-        System.out.println("Authenticated to Keycloak as service account '" + simClientId + "'");
-        return token.accessToken();
+        System.out.println("Authenticating to Keycloak as service account '" + simClientId + "'");
+        return RefreshingToken.of(() -> {
+            KeycloakTokenClient.Token t = tokens.clientCredentialsGrant(simClientId, simSecret);
+            return new RefreshingToken.Snapshot(t.accessToken(), t.expiresAt());
+        });
     }
 
     private static void run(DeephavenSessions sessions, BarrageSession session, TableHandle orders) throws Exception {

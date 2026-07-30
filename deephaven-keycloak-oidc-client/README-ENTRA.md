@@ -85,6 +85,17 @@ ENTRA_USER_FLOW=ropc ./gradlew :deephaven-keycloak-oidc-client:runSubscriber \
 Assign Entra **app roles** (or groups) named `trader-us`, `trader-emea`, or `dh-admin` so the
 subscriber can pick the entitled view.
 
+## Token lifecycle (long-running clients)
+
+Both demo clients now outlive the ~60–90 min access-token lifetime: tokens are wrapped in a
+`RefreshingToken` that renews proactively near expiry — silently via the MSAL cache for users
+(no new sign-in or Authenticator prompt while the refresh token is valid), via a fresh
+client-credentials grant for the daemon — and both clients reconnect automatically with a
+current token (5s→60s backoff) if the server restarts or the stream drops. The
+`ENTRA_ACCESS_TOKEN` testing hook cannot be refreshed; expect reconnects to fail once it
+expires. The MSAL cache is per-process, so each new subscriber process performs one interactive
+sign-in; renewals within the process are silent.
+
 ## Keycloak remains the default
 
 Omit `AUTH_PROVIDER` or set `AUTH_PROVIDER=keycloak` to keep the original local compose behaviour

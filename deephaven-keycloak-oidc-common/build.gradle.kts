@@ -8,4 +8,11 @@ dependencies {
     implementation(libs.msal4j)
     runtimeOnly(libs.deephaven.log.to.slf4j)
     runtimeOnly(libs.slf4j.simple)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

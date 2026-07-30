@@ -68,6 +68,32 @@ public final class DeephavenSessions implements AutoCloseable {
         return factory.newBarrageSession(sessionConfig);
     }
 
+    /**
+     * Opens a new session using a {@link RefreshingToken}, refreshing proactively near expiry and
+     * retrying once with a forced refresh if the server still rejects the token
+     * (UNAUTHENTICATED — e.g. clock skew or a token invalidated server-side).
+     */
+    public BarrageSession newSession(RefreshingToken token) {
+        try {
+            return newSession(token.get());
+        } catch (RuntimeException e) {
+            if (!isUnauthenticated(e)) {
+                throw e;
+            }
+            return newSession(token.getFresh());
+        }
+    }
+
+    private static boolean isUnauthenticated(Throwable t) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof io.grpc.StatusRuntimeException sre
+                    && sre.getStatus().getCode() == io.grpc.Status.Code.UNAUTHENTICATED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public BufferAllocator allocator() {
         return allocator;
     }

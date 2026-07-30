@@ -49,7 +49,7 @@ Remaining, in recommended order:
 |---|---|---|---|
 | 1 | Web IDE login via MSAL.js | ✅ done + **live-verified** | Browser users on the Entra stack |
 | 2 | Server-side identity & roles | ✅ done + **live-verified** | Real per-user auditing; groundwork for authz |
-| 3 | Token lifecycle in long-running clients | Low | Daemons running past token expiry |
+| 3 | Token lifecycle in long-running clients | ✅ **done** (live reconnect verified) | Daemons running past token expiry |
 | 4 | Entra tenant setup guide + live E2E test | ✅ **done** — see [live validation results](entra-live-validation-results.md) | All live testing |
 | 5 | Tests & CI | Medium | Regression safety |
 | 6 | EKS deployment variant | Medium | Production-ish deploy without Keycloak |
@@ -212,7 +212,23 @@ audience or from another tenant is rejected (already true); a `dh-admin` token g
 
 ---
 
-## Phase 3 — Token lifecycle in long-running clients
+## Phase 3 — Token lifecycle in long-running clients  ✅ IMPLEMENTED (as-built notes)
+
+> Implemented 2026-07-30. As-built: `RefreshingToken` (common module) wraps a provider-specific
+> refresher and re-invokes it only within a margin (default 2 min) of expiry; `getFresh()` forces
+> re-issue for UNAUTHENTICATED retries; `fixed()` covers the `ENTRA_ACCESS_TOKEN` hook (no
+> refresh). `EntraTokenClient.daemonToken(secret)` shares one `ConfidentialClientApplication`
+> and bypasses the MSAL cache on refresh (`skipCache`); `userToken()` renews silently
+> (`forceRefresh` silent flow — no new sign-in/MFA while the refresh token is valid), falling
+> back to the configured interactive flow. `DeephavenSessions.newSession(RefreshingToken)`
+> retries once with a forced refresh on UNAUTHENTICATED. Both demo clients gained reconnect
+> loops (5s→60s capped backoff); the subscriber re-subscribes on stream failure. Keycloak paths
+> use the same wrapper via re-grant lambdas. 5 unit tests on the refresh logic. **Live-verified**
+> against the real tenant: server restarted mid-run → simulator logged `connection lost` /
+> `Reconnecting … with a current token` and resumed publishing unattended, while stale browser
+> sessions presenting expired JWTs were rejected by the server in the same window. Note: the
+> MSAL cache is in-memory, so a *new* subscriber process performs one sign-in; renewals within a
+> process are silent (persisting the cache to disk would be a follow-on hardening item).
 
 **Goal:** `OrderSimulator` (daemon) and `OrderSubscriber` (interactive) survive past the ~60–90 min
 access-token lifetime.

@@ -64,10 +64,38 @@ public final class EntraTokenClient {
 
     private final AppConfig config;
     private volatile PublicClientApplication publicApp;
+    private volatile ConfidentialClientApplication confidentialApp;
 
     public EntraTokenClient(AppConfig config) {
         this.config = config;
         config.requireEntraConfig();
+    }
+
+    /** Lazily-built shared confidential client; one instance = one MSAL app-token cache. */
+    private ConfidentialClientApplication confidentialApp(String clientSecret) {
+        ConfidentialClientApplication app = confidentialApp;
+        if (app == null) {
+            synchronized (this) {
+                if (confidentialApp == null) {
+                    if (clientSecret == null || clientSecret.isBlank()) {
+                        throw new IllegalArgumentException(
+                                "ENTRA_CLIENT_SECRET is required for client-credentials grant");
+                    }
+                    try {
+                        confidentialApp = ConfidentialClientApplication.builder(
+                                        config.entraClientId(),
+                                        ClientCredentialFactory.createFromSecret(clientSecret))
+                                .authority(config.entraAuthority())
+                                .build();
+                    } catch (Exception e) {
+                        throw new IllegalStateException(
+                                "Failed to build MSAL confidential client: " + e.getMessage(), e);
+                    }
+                }
+                app = confidentialApp;
+            }
+        }
+        return app;
     }
 
     /** Lazily-built shared public client; one instance = one MSAL token cache for silent renewal. */
@@ -92,29 +120,56 @@ public final class EntraTokenClient {
 
     /**
      * Client-credentials grant for a confidential app registration (daemon / service account).
+     * Served from the shared MSAL app-token cache when a valid token exists.
      *
      * @param clientSecret value of {@code ENTRA_CLIENT_SECRET} (or an explicit secret)
      */
     public Token clientCredentialsGrant(String clientSecret) {
-        if (clientSecret == null || clientSecret.isBlank()) {
-            throw new IllegalArgumentException("ENTRA_CLIENT_SECRET is required for client-credentials grant");
-        }
-        try {
-            ConfidentialClientApplication app = ConfidentialClientApplication.builder(
-                            config.entraClientId(),
-                            ClientCredentialFactory.createFromSecret(clientSecret))
-                    .authority(config.entraAuthority())
-                    .build();
+        return clientCredentialsGrant(clientSecret, false);
+    }
 
+    private Token clientCredentialsGrant(String clientSecret, boolean forceRefresh) {
+        try {
             Set<String> scopes = Set.of(config.entraScope());
-            ClientCredentialParameters params = ClientCredentialParameters.builder(scopes).build();
-            IAuthenticationResult result = app.acquireToken(params).join();
+            ClientCredentialParameters params = ClientCredentialParameters.builder(scopes)
+                    .skipCache(forceRefresh)
+                    .build();
+            IAuthenticationResult result = confidentialApp(clientSecret).acquireToken(params).join();
             return toToken(result);
         } catch (CompletionException e) {
             throw wrap("client-credentials", e);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Entra client-credentials grant failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Refresher for long-running daemons: invoked by {@link RefreshingToken} only near expiry, so
+     * it bypasses the MSAL cache to guarantee a genuinely fresh token.
+     */
+    public RefreshingToken daemonToken(String clientSecret) {
+        return RefreshingToken.of(() -> snapshot(clientCredentialsGrant(clientSecret, true)));
+    }
+
+    /**
+     * Refresher for interactive users (device-code / interactive flows): silent renewal via the
+     * shared MSAL cache and refresh token — no new sign-in or MFA prompt while the refresh token
+     * is valid — falling back to the configured interactive flow only when silent renewal fails.
+     */
+    public RefreshingToken userToken() {
+        return RefreshingToken.of(() -> snapshot(
+                acquireSilently(true).orElseGet(() -> switch (config.entraUserFlow()) {
+                    case INTERACTIVE -> interactiveGrant();
+                    // DEVICE_CODE and (misconfigured) ROPC both fall back to device code —
+                    // ROPC credentials are not retained for re-grants.
+                    default -> deviceCodeGrant();
+                })));
+    }
+
+    private static RefreshingToken.Snapshot snapshot(Token token) {
+        return new RefreshingToken.Snapshot(token.accessToken(), token.expiresAt());
     }
 
     /**
@@ -197,6 +252,14 @@ public final class EntraTokenClient {
      * Empty when no account is cached yet or silent renewal fails — fall back to an interactive grant.
      */
     public Optional<Token> acquireSilently() {
+        return acquireSilently(false);
+    }
+
+    /**
+     * Silent renewal; with {@code forceRefresh} the cached access token is bypassed and the
+     * refresh token is redeemed for a new one (used by {@link #userToken()} near expiry).
+     */
+    public Optional<Token> acquireSilently(boolean forceRefresh) {
         try {
             PublicClientApplication app = publicApp();
             Set<IAccount> accounts = app.getAccounts().join();
@@ -205,6 +268,7 @@ public final class EntraTokenClient {
             }
             SilentParameters params = SilentParameters
                     .builder(Set.of(config.entraScope()), accounts.iterator().next())
+                    .forceRefresh(forceRefresh)
                     .build();
             return Optional.of(toToken(app.acquireTokenSilently(params).join()));
         } catch (Exception e) {

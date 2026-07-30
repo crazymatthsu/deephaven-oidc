@@ -14,6 +14,7 @@ import io.deephaven.oidc.demo.common.AppConfig.AuthProvider;
 import io.deephaven.oidc.demo.common.DeephavenSessions;
 import io.deephaven.oidc.demo.common.EntraTokenClient;
 import io.deephaven.oidc.demo.common.KeycloakTokenClient;
+import io.deephaven.oidc.demo.common.RefreshingToken;
 import io.deephaven.util.SafeCloseable;
 import io.deephaven.util.annotations.ReferentialIntegrity;
 
@@ -58,36 +59,16 @@ public final class OrderSubscriber {
         AppConfig config = AppConfig.fromEnv();
         System.out.println("Order subscriber starting with " + config);
 
-        String accessToken;
-        List<String> roles;
-        String presetToken = System.getenv("ENTRA_ACCESS_TOKEN");
-        if (config.authProvider() == AuthProvider.ENTRA && presetToken != null && !presetToken.isBlank()) {
-            // Testing/advanced hook: use a pre-acquired token (e.g. minted against a mock issuer,
-            // or obtained out-of-band) instead of an MSAL flow.
-            accessToken = presetToken.trim();
-            roles = EntraTokenClient.rolesFromToken(accessToken);
-            System.out.println("Using pre-acquired Entra access token (ENTRA_ACCESS_TOKEN) with roles " + roles);
-        } else if (config.authProvider() == AuthProvider.ENTRA) {
-            EntraTokenClient tokens = new EntraTokenClient(config);
-            EntraTokenClient.Token token = switch (config.entraUserFlow()) {
-                // MFA-capable flows: identity comes from whoever completes the browser sign-in;
-                // --user/DH_USER and passwords are not used.
-                case DEVICE_CODE -> tokens.deviceCodeGrant();
-                case INTERACTIVE -> tokens.interactiveGrant();
-                // Legacy, MFA-incapable fallback for test tenants.
-                case ROPC -> tokens.usernamePasswordGrant(user, password);
-            };
-            accessToken = token.accessToken();
-            roles = EntraTokenClient.rolesFromToken(accessToken);
-            String who = token.username().isBlank() ? user : token.username();
-            System.out.println("Authenticated to Entra ID as '" + who + "' with roles " + roles);
-        } else {
-            KeycloakTokenClient tokens = new KeycloakTokenClient(config);
-            KeycloakTokenClient.Token token = tokens.passwordGrant(user, password);
-            accessToken = token.accessToken();
-            roles = KeycloakTokenClient.realmRoles(accessToken);
-            System.out.println("Authenticated to Keycloak as '" + user + "' with realm roles " + roles);
-        }
+        // Refreshed automatically near expiry (silent MSAL renewal — no new sign-in/MFA while the
+        // refresh token is valid); presented on every (re)connect.
+        RefreshingToken token = tokenFor(config, user, password);
+
+        // First acquisition happens here; roles pick the view once, at startup.
+        String accessToken = token.get();
+        List<String> roles = config.authProvider() == AuthProvider.ENTRA
+                ? EntraTokenClient.rolesFromToken(accessToken)
+                : KeycloakTokenClient.realmRoles(accessToken);
+        System.out.println("Authenticated with roles " + roles);
 
         String view = VIEW_BY_ROLE.entrySet().stream()
                 .filter(e -> roles.contains(e.getKey()))
@@ -96,11 +77,59 @@ public final class OrderSubscriber {
                 .orElseThrow(() -> new IllegalStateException("User '" + user + "' holds none of the entitled roles "
                         + VIEW_BY_ROLE.keySet() + "; nothing to subscribe to. "
                         + "For Entra, assign app roles or groups matching these names."));
-        System.out.println("Entitled view for '" + user + "': " + view);
+        System.out.println("Entitled view: " + view);
 
-        CountDownLatch done = new CountDownLatch(1);
+        long backoffMs = 5_000;
+        while (true) {
+            try {
+                subscribeUntilFailure(config, token, view);
+                System.err.println("Subscription lost.");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception e) {
+                System.err.println("Connection failed: " + e.getMessage());
+            }
+            System.err.println("Reconnecting in " + backoffMs / 1000 + "s with a current token...");
+            Thread.sleep(backoffMs);
+            backoffMs = Math.min(backoffMs * 2, 60_000);
+        }
+    }
+
+    private static RefreshingToken tokenFor(AppConfig config, String user, String password) {
+        if (config.authProvider() == AuthProvider.ENTRA) {
+            String presetToken = System.getenv("ENTRA_ACCESS_TOKEN");
+            if (presetToken != null && !presetToken.isBlank()) {
+                // Testing/advanced hook: pre-acquired token; cannot be refreshed at expiry.
+                System.out.println("Using pre-acquired Entra access token (ENTRA_ACCESS_TOKEN; no auto-refresh)");
+                return RefreshingToken.fixed(presetToken.trim());
+            }
+            EntraTokenClient tokens = new EntraTokenClient(config);
+            if (config.entraUserFlow() == AppConfig.UserFlow.ROPC) {
+                // Legacy, MFA-incapable fallback for test tenants; re-grants with the same credentials.
+                return RefreshingToken.of(() -> {
+                    EntraTokenClient.Token t = tokens.usernamePasswordGrant(user, password);
+                    return new RefreshingToken.Snapshot(t.accessToken(), t.expiresAt());
+                });
+            }
+            // MFA-capable flows (device code / interactive): first acquisition signs in via the
+            // configured flow; renewals are silent through the shared MSAL cache.
+            return tokens.userToken();
+        }
+
+        KeycloakTokenClient tokens = new KeycloakTokenClient(config);
+        return RefreshingToken.of(() -> {
+            KeycloakTokenClient.Token t = tokens.passwordGrant(user, password);
+            return new RefreshingToken.Snapshot(t.accessToken(), t.expiresAt());
+        });
+    }
+
+    /** Connects, subscribes, and streams updates until the subscription or connection fails. */
+    private static void subscribeUntilFailure(AppConfig config, RefreshingToken token, String view)
+            throws Exception {
+        CountDownLatch connectionLost = new CountDownLatch(1);
         try (DeephavenSessions sessions = DeephavenSessions.connect(config);
-                BarrageSession session = sessions.newSession(accessToken);
+                BarrageSession session = sessions.newSession(token);
                 SafeCloseable ignoredContext = sessions.openExecutionContext();
                 SafeCloseable ignoredScope = LivenessScopeStack.open();
                 TableHandle handle = OrdersSchema.fetch(session, config.applicationId(), view)) {
@@ -126,9 +155,8 @@ public final class OrderSubscriber {
 
                 @Override
                 protected void onFailureInternal(Throwable originalException, Entry sourceEntry) {
-                    System.err.println("Subscription failed:");
-                    originalException.printStackTrace();
-                    done.countDown();
+                    System.err.println("Subscription failed: " + originalException.getMessage());
+                    connectionLost.countDown();
                 }
 
                 @Override
@@ -141,7 +169,7 @@ public final class OrderSubscriber {
             });
 
             System.out.println("Listening for updates (Ctrl-C to stop)...");
-            done.await();
+            connectionLost.await();
         }
     }
 
