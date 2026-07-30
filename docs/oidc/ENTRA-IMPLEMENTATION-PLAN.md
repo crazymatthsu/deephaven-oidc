@@ -47,10 +47,10 @@ Remaining, in recommended order:
 
 | Phase | What | Effort | Unblocks |
 |---|---|---|---|
-| 1 | Web IDE login via MSAL.js | ✅ done (live validation pending) | Browser users on the Entra stack |
-| 2 | Server-side identity & roles | ✅ done | Real per-user auditing; groundwork for authz |
+| 1 | Web IDE login via MSAL.js | ✅ done + **live-verified** | Browser users on the Entra stack |
+| 2 | Server-side identity & roles | ✅ done + **live-verified** | Real per-user auditing; groundwork for authz |
 | 3 | Token lifecycle in long-running clients | Low | Daemons running past token expiry |
-| 4 | Entra tenant setup guide + live E2E test | Low (docs) + portal work | All live testing |
+| 4 | Entra tenant setup guide + live E2E test | ✅ **done** — see [live validation results](entra-live-validation-results.md) | All live testing |
 | 5 | Tests & CI | Medium | Regression safety |
 | 6 | EKS deployment variant | Medium | Production-ish deploy without Keycloak |
 | 7 | End-state decision: retire Keycloak vs broker | Decision | Simplified architecture |

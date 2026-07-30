@@ -16,7 +16,7 @@ Two **switchable** identity implementations live side by side:
 | User MFA | Whatever the realm enforces (demo: none) | ✅ Microsoft Authenticator via device-code / interactive MSAL flows |
 | Web IDE login | ✅ works (Keycloak JS plugin) | ✅ built ([js-plugin-auth-entra](js-plugin-auth-entra): MSAL.js auth-code+PKCE — enterprise SSO + Authenticator MFA; needs `ENTRA_SPA_CLIENT_ID`/`ENTRA_WEB_SCOPE`) |
 | Row-level security | Script-level only (cooperative — any authenticated user can reach all rows) | ✅ **enforced server-side**: custom `AuthorizationProvider` gates every table fetch/write by Entra roles; consoles superuser-only ([details](deephaven-entra-oidc-server/README.md#server-side-entitlement-enforcement-custom-server-assembly)) |
-| Status | Verified end-to-end locally | Enforcement E2E-verified against a mock issuer with minted role tokens; live Entra sign-in pending a tenant ([setup guide](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md#phase-4--entra-tenant-setup-guide)) |
+| Status | Verified end-to-end locally | ✅ **Live-verified against a real Entra tenant** — web IDE SSO + Authenticator MFA (3 personas, 3 browsers), role-enforced reads/writes, interactive/device-code sign-in, client-credentials daemon ([results](docs/oidc/entra-live-validation-results.md)) |
 
 Remaining Entra work is planned in detail in
 [`docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md`](docs/oidc/ENTRA-IMPLEMENTATION-PLAN.md).
