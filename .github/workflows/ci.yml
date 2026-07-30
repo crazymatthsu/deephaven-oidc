@@ -1,0 +1,67 @@
+# CI: Gradle build + all unit tests + the Entra handler fat jar, and the web login plugin bundle.
+# Live Entra tests stay manual (they need a tenant and a human for MFA) — see
+# docs/oidc/entra-live-validation-results.md for the live procedure.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gradle:
+    name: Build, test, fat jar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Runs every module's tests (handler vs mock issuer, entitlement policy, token refresh,
+      # config/role parsing) and packages the deployable Entra handler jar.
+      - name: Build and test
+        run: ./gradlew build :deephaven-entra-oidc-server:fatJar
+
+      - name: Check fat jar has no slf4j binding
+        run: |
+          ! unzip -l deephaven-entra-oidc-server/build/libs/deephaven-entra-oidc-auth-all.jar \
+            | grep -q "org/slf4j/impl"
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+
+  web-plugin:
+    name: Web login plugin bundle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: js-plugin-auth-entra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      # The bundle must stay CJS with exactly the shim-provided externals (see the plugin README).
+      - name: Verify bundle shape
+        run: |
+          test -f dist/index.js
+          grep -q 'require("react")' dist/index.js
+          grep -q 'require("@deephaven/auth-plugins")' dist/index.js
+          grep -q 'exports.AuthPlugin' dist/index.js
+          ! grep -q 'require("@deephaven/log")' dist/index.js
