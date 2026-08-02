@@ -11,5 +11,8 @@ node_modules/
 dist/
 *.swp
 deephaven-keycloak-oidc-client/.env-entra-pubsub
+*.key
+*.crt
 # local TLS material for the nginx HTTPS front
 deephaven-entra-oidc-server/docker/nginx/certs/
+
