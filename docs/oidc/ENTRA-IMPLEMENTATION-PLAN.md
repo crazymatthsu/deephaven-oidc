@@ -345,3 +345,18 @@ Decide after Phase 1 lands:
   realm federation in `deephaven_realm.json` instead.
 
 Record the decision in this file when made.
+
+---
+
+## Addendum — HTTPS front for the web IDE (nginx, port 1433)  ✅ IMPLEMENTED
+
+> Implemented 2026-07-30. Entra permits `http` redirect URIs only for localhost, so serving the
+> IDE from a Linux box requires TLS. The Entra compose stack gained an `nginx` service: TLS on
+> **:1433**, plain HTTP upstream to the Deephaven container, websocket upgrade + unbuffered
+> streaming for the browser's gRPC transports (`docker/nginx/default.conf`).
+> `scripts/start.sh entra` generates a self-signed cert on first run (`DH_HTTPS_HOST` sets the
+> CN/SAN); replace `docker/nginx/certs/` for real deployments. SPA redirect URIs to register:
+> `https://<host>:1433/ide/` + `https://<host>:1433/iframe/widget/`. Java clients are unaffected
+> (redirect URIs are a browser concern; they keep using :10000). On **EKS** no nginx is needed —
+> the ALB terminates TLS; for a nonstandard port change the ingress `listen-ports` annotation to
+> `[{"HTTPS":1433}]` and register matching redirect URIs.

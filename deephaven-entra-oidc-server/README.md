@@ -113,6 +113,24 @@ Acquire `accessToken` with MSAL — see
 for the demo clients: client-credentials for the simulator, **device-code with Microsoft
 Authenticator MFA** (default) for users.
 
+## HTTPS front (nginx, port 1433)
+
+Entra permits plain `http` redirect URIs **only for localhost** — so on any Linux box or shared
+host, browsers must reach the IDE over HTTPS. The compose stack includes an `nginx` service that
+terminates TLS on **:1433** and proxies plain HTTP to the Deephaven container (websocket upgrade
++ unbuffered streaming for the browser's gRPC transports):
+
+- `scripts/start.sh entra` generates a **self-signed** cert on first run
+  (`DH_HTTPS_HOST=<fqdn>` sets the CN/SAN; browser warning expected). Replace
+  `docker/nginx/certs/tls.{crt,key}` with a corporate/ACME cert for real use.
+- Register the HTTPS redirect URIs on the `deephaven-users` SPA platform (exact match):
+  `https://<host>:1433/ide/` and `https://<host>:1433/iframe/widget/`.
+- **Java clients are unaffected** — redirect URIs are a browser concern; daemons/subscribers keep
+  connecting to `:10000` (or your gRPC-capable LB).
+- **EKS**: no nginx needed — the ALB already terminates TLS. To expose a nonstandard port there,
+  change the ingress annotation to `listen-ports: '[{"HTTPS":1433}]'` and register the matching
+  redirect URIs.
+
 ## Design notes & roadmap
 
 - [`docs/oidc/custom-entra-oidc-handler-with-msal.md`](../docs/oidc/custom-entra-oidc-handler-with-msal.md) — feasibility research
