@@ -1,0 +1,40 @@
+# Public entry point: TLS at an internet-facing AWS ALB (AWS Load Balancer Controller add-on).
+# Half the size of the Keycloak variant's ingress — there is no auth host to publish; browsers
+# talk to login.microsoftonline.com directly.
+#
+# Deephaven speaks gRPC (HTTP/2) on the same port as the web UI, so the target group uses
+# backend-protocol-version GRPC (gRPC target groups still pass the web IDE's HTTP/1.1 through);
+# see deploy/eks/DESIGN.md#load-balancer for controller-version caveats.
+#
+# Replace certificate-arn and the hostname with your ACM cert and Route53 record — and register
+# https://<host>/ide/ (+ /iframe/widget/) as SPA redirect URIs on the deephaven-users app.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deephaven
+  namespace: deephaven-entra
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REPLACE-region:REPLACE-acct:certificate/REPLACE-id
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Barrage subscriptions are long-lived server-streaming RPCs; keep idle timeout generous.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+    # Optional hardening: restrict to the corporate egress CIDR (see deploy/eks/DESIGN.md).
+    # alb.ingress.kubernetes.io/inbound-cidrs: 203.0.113.0/24
+spec:
+  ingressClassName: alb
+  rules:
+    - host: deephaven.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: deephaven
+                port:
+                  name: grpc-http

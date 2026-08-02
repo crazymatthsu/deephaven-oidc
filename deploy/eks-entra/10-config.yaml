@@ -1,0 +1,23 @@
+# Entra ID wiring for the Deephaven server. None of these values are secrets — tenant id,
+# client ids, and scopes are public identifiers (the only secret in the whole architecture is
+# the pub-sub daemon's client secret, which lives with the daemon, not the server; see
+# 40-pubsub-secret.example.yaml if you run the daemon in-cluster).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deephaven-entra
+  namespace: deephaven-entra
+data:
+  # Directory (tenant) ID.
+  ENTRA_TENANT_ID: REPLACE-tenant-guid
+  # Expected token audience: the deephaven-api app's BARE client id (v2 tokens carry the GUID,
+  # not the api://... URI — verified live; see docs/oidc/entra-tenant-setup-guide.md §1.2).
+  ENTRA_AUDIENCE: REPLACE-api-app-client-guid
+  # Role claims admitted as Deephaven SuperUser (comma-separated). Enterprise model: "admin"
+  # (AD group DH_ADM); demo model: "dh-admin".
+  ENTRA_SUPERUSER_ROLES: dh-admin
+  # Browser IDE login (deephaven-users app). Its SPA platform must list the PUBLIC IDE URLs as
+  # redirect URIs, e.g. https://deephaven.example.com/ide/ and
+  # https://deephaven.example.com/iframe/widget/ (HTTPS is mandatory off-localhost).
+  ENTRA_SPA_CLIENT_ID: REPLACE-users-app-client-guid
+  ENTRA_WEB_SCOPE: api://REPLACE-api-app-client-guid/access_as_user
