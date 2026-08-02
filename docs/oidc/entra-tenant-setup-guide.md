@@ -117,7 +117,9 @@ automatically. On P1-licensed tenants you may assign security groups to roles in
    `http://localhost:10000/ide/` → Configure.
    ⚠️ Must match the IDE URL **exactly, including the trailing slash** (the login plugin computes
    `window.location.origin + pathname`). Add your production HTTPS URL here later — Entra allows
-   plain `http` only for localhost.
+   plain `http` only for localhost. When serving from a Linux box via the compose stack's nginx
+   HTTPS front, add `https://<host>:1433/ide/` and `https://<host>:1433/iframe/widget/`
+   (see the [server README](../../deephaven-entra-oidc-server/README.md#https-front-nginx-port-1433)).
 
 ### 2.3 Enable device code
 
