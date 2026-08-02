@@ -59,6 +59,20 @@ if [[ "$MODE" == "entra" ]]; then
     exit 1
   fi
 
+  # --- self-signed TLS cert for the nginx HTTPS front (browsers; Entra needs HTTPS redirect
+  # --- URIs off-localhost). Override the hostname with DH_HTTPS_HOST=<fqdn>; replace the pair
+  # --- in docker/nginx/certs/ with a real cert for anything beyond a dev box.
+  CERT_DIR="$REPO_ROOT/deephaven-entra-oidc-server/docker/nginx/certs"
+  if [[ ! -f "$CERT_DIR/tls.crt" || ! -f "$CERT_DIR/tls.key" ]]; then
+    HTTPS_HOST="${DH_HTTPS_HOST:-localhost}"
+    info "Generating self-signed TLS cert for nginx (CN/SAN: $HTTPS_HOST)..."
+    mkdir -p "$CERT_DIR"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+      -keyout "$CERT_DIR/tls.key" -out "$CERT_DIR/tls.crt" \
+      -subj "/CN=$HTTPS_HOST" \
+      -addext "subjectAltName=DNS:$HTTPS_HOST,DNS:localhost,IP:127.0.0.1" 2>/dev/null
+  fi
+
   info "Building the Entra OIDC handler fat jar..."
   "$REPO_ROOT/gradlew" -p "$REPO_ROOT" :deephaven-entra-oidc-server:fatJar -q
 
@@ -75,7 +89,10 @@ if [[ "$MODE" == "entra" ]]; then
 
 Entra stack is ready.
 
-  Deephaven IDE   $DH_URL/ide   (browser SSO + Authenticator MFA if ENTRA_SPA_CLIENT_ID/ENTRA_WEB_SCOPE are set)
+  Deephaven IDE   https://localhost:1433/ide   (TLS via nginx; register this host's HTTPS
+                                               redirect URIs on the SPA app — self-signed cert
+                                               warning expected on a dev box)
+                  $DH_URL/ide   (direct HTTP; localhost-only redirect URIs)
   Identity        Microsoft Entra ID (tenant \${ENTRA_TENANT_ID})
 
 Next steps (AUTH_PROVIDER=entra; see deephaven-keycloak-oidc-client/README-ENTRA.md):
