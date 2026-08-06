@@ -194,7 +194,7 @@ Full write-up with symptoms, root-cause analysis, and how it was diagnosed:
 
 ## Version pinning
 
-Deephaven `0.39.4` (server image, client libraries, and OIDC provider jar must match) and Keycloak
+Deephaven `41.3` (server image, client libraries, and OIDC provider jar must match) and Keycloak
 `26.2`. Bump `deephaven` in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) and
-`DEEPHAVEN_VERSION` in the [Dockerfile](deephaven-keycloak-oidc-server/docker/deephaven/Dockerfile)
-together.
+`DEEPHAVEN_VERSION` in the Dockerfiles together. Dagger is pinned to `2.56.2` to match the
+runtime shipped in `ghcr.io/deephaven/server:41.3`.
