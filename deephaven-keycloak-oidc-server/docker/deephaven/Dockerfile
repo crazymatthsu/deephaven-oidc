@@ -1,5 +1,5 @@
 # Custom Deephaven server image with Keycloak OIDC authentication and the orders demo app.
-ARG DEEPHAVEN_VERSION=0.39.4
+ARG DEEPHAVEN_VERSION=41.3
 
 # Stage 1: package the Keycloak login plugin for the web IDE.
 FROM ghcr.io/deephaven/web-plugin-packager:latest AS js-plugins

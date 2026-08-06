@@ -5,7 +5,7 @@
 #
 # Prerequisite:  ./gradlew :deephaven-entra-oidc-server:fatJar   (scripts/start.sh entra does this)
 #
-ARG DEEPHAVEN_VERSION=0.39.4
+ARG DEEPHAVEN_VERSION=41.3
 
 # Stage 1: build the Entra web-login plugin (MSAL.js auth-code + PKCE). Node lives only in this
 # stage — the host needs no JS toolchain.

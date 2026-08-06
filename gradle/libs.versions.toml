@@ -1,12 +1,12 @@
 [versions]
-deephaven = "0.39.4"
+deephaven = "41.3"
 jackson = "2.18.2"
 slf4j = "2.0.16"
 spring-security = "6.4.2"
 msal4j = "1.25.0"
 junit = "5.10.2"
-# Must match the dagger runtime shipped in ghcr.io/deephaven/server:0.39.4 (dagger-2.56.1.jar).
-dagger = "2.56.1"
+# Must match the dagger runtime shipped in ghcr.io/deephaven/server:41.3 (dagger-2.56.2.jar).
+dagger = "2.56.2"
 
 [libraries]
 deephaven-client-barrage = { module = "io.deephaven:deephaven-java-client-barrage", version.ref = "deephaven" }

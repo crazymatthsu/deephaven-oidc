@@ -47,8 +47,9 @@ services:
   # HTTPS front for browsers (Entra requires HTTPS redirect URIs off-localhost). Certs are
   # generated self-signed by scripts/start.sh entra if absent — replace with real ones in
   # docker/nginx/certs/ for anything beyond a dev box. Java clients keep using :10000 directly.
+  # nginx 1.30+ supports HTTP/2 to upstream (proxy_http_version 2).
   nginx:
-    image: docker.io/library/nginx:1.27-alpine
+    image: docker.io/library/nginx:1.30-alpine
     ports:
       - "1433:1433"
     volumes:
